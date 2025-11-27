@@ -1,6 +1,7 @@
 import './SeccionDinamicatickets.css'
 import TicketsList from '../Usuario/TicketsList'
-import TicketsSoporte from '../Soporte/TicketsSoporte'
+import MisTareas from '../Usuario/MisTareas'
+import TicketsSoporte from '../Usuario/CrearTicket/TicketsSoporte.jsx'
 
 const SeccionDinamicaTickets = ({ selectedSection }) => {
   let contenido
@@ -13,7 +14,11 @@ const SeccionDinamicaTickets = ({ selectedSection }) => {
       contenido = <TicketsSoporte />
       break
 
-    default:
+      case 'mistareas':
+      contenido = <MisTareas />
+      break
+   
+      default:
       contenido = <TicketsList />
   }
 

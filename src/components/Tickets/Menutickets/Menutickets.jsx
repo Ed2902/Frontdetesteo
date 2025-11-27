@@ -6,10 +6,12 @@ import { usePermisos } from '../../../hooks/usePermisos'
 const MenuTickets = ({ selectedSection, onSelectSection }) => {
   useContext(AuthContext)
   const { tienePermiso } = usePermisos()
-
+console.log('🔎 permiso mistareas =>', tienePermiso('mistareas'))
   const botones = [
-    { label: 'Usuarios', key: 'usuarios', permiso: 'crearTicket' },
-    { label: 'Soporte', key: 'soporte', permiso: 'soporteTicket' },
+    { label: 'Mis Tareas', key: 'usuarios', permiso: 'crearTicket' },
+    { label: 'Crear Tarea', key: 'soporte', permiso: 'soporteTicket' },
+    { label: 'Mis Tareas', key: 'mistareas', permiso: 'MisTareas' },
+
   ]
 
   return (

@@ -1,7 +1,7 @@
 const TicketsList = () => {
   return (
     <div>
-      <h1>Hola mundo</h1>
+      <h1>Front Mis tareas</h1>
     </div>
   )
 }
