@@ -8,11 +8,15 @@ import {
   fetchTicketCategories,
   fetchTicketPriorities,
   fetchTicketStatuses,
-  fetchTicketUsers, // 👈 asegúrate que exista en TicketsChat.js
+  fetchTicketUsers,
 } from "../TicketsChat/TicketsChat.js";
 
 export default function TicketChat({ ticketId, onClose }) {
   const { user, authTokens } = useContext(AuthContext);
+
+  // 🧑 ID principal: priorizamos id_personal y luego id_usuario
+  const principalId =
+    user?.id_personal || user?.id_usuario || user?.id || 1;
 
   const [ticket, setTicket] = useState(null);
   const [ticketLoading, setTicketLoading] = useState(true);
@@ -28,9 +32,6 @@ export default function TicketChat({ ticketId, onClose }) {
   const [priorityMap, setPriorityMap] = useState({});
   const [statusMap, setStatusMap] = useState({});
   const [userMap, setUserMap] = useState({});
-
-  const principalId =
-    user?.id_personal || user?.id || user?.id_usuario || 1;
 
   /* ======================= Cargar ticket + mensajes ======================= */
   useEffect(() => {
@@ -110,46 +111,47 @@ export default function TicketChat({ ticketId, onClose }) {
           sMap[key] = s.name || s.Nombre || s.nombre || key;
         });
 
-        // usuarios (MISMO criterio que usas en MisTareas)
+        // usuarios: guardamos por id_usuario E id_personal
         const uMap = {};
         users.forEach((u) => {
           const idUsuario =
             u.id_usuario ??
             u.Id_usuario ??
             u.ID_usuario ??
-            u.idUsuario ??
-            u.IdUsuario ??
-            u.IDUsuario ??
+            u.usuario_id ??
             u.id ??
-            u.Id ??
-            u.ID ??
-            u.personal?.id_usuario;
+            null;
 
-          if (idUsuario == null) return;
-
-          const key = String(idUsuario).trim();
+          const idPersonal =
+            u.id_personal ??
+            u.Id_personal ??
+            u.ID_personal ??
+            u.personal?.id_personal ??
+            null;
 
           const nombre =
-            u.personal?.nombre ??
             u.personal?.Nombre ??
+            u.personal?.nombre ??
             u.Nombre ??
             u.nombre ??
-            u.NOMBRE ??
-            u.name ??
-            u.username ??
             "";
 
           const apellido =
-            u.personal?.apellido ??
             u.personal?.Apellido ??
+            u.personal?.apellido ??
             u.Apellido ??
             u.apellido ??
-            u.APELLIDO ??
-            u.lastName ??
             "";
 
-          const fullName = `${nombre} ${apellido}`.trim();
-          uMap[key] = fullName || `Usuario ${key}`;
+          const fullName = `${nombre} ${apellido}`.trim() || "Sin nombre";
+
+          if (idUsuario != null) {
+            uMap[String(idUsuario).trim()] = fullName;
+          }
+
+          if (idPersonal != null) {
+            uMap[String(idPersonal).trim()] = fullName;
+          }
         });
 
         if (isMounted) {
@@ -168,33 +170,6 @@ export default function TicketChat({ ticketId, onClose }) {
       isMounted = false;
     };
   }, [authTokens]);
-
-  /* ======================= Enviar mensaje ======================= */
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-
-    setSending(true);
-    setError("");
-
-    try {
-      const created = await sendTicketMessage({
-        ticketId,
-        authTokens,
-        principalId,
-        content: newMessage.trim(),
-        user,
-      });
-
-      setMessages((prev) => [...prev, created]);
-      setNewMessage("");
-    } catch (err) {
-      console.error("❌ Error enviando mensaje:", err);
-      setError("No se pudo enviar el mensaje.");
-    } finally {
-      setSending(false);
-    }
-  };
 
   /* ======================= Helpers ======================= */
   const formatDate = (d) =>
@@ -229,10 +204,49 @@ export default function TicketChat({ ticketId, onClose }) {
     return statusMap[String(id)] || ticket.statusName || String(id);
   };
 
-  const getUserName = (id) => {
+  const getUserNameById = (id) => {
     if (!id) return "";
     const key = String(id).trim();
-    return userMap[key] || `Usuario ${key}`;
+    return userMap[key] || "";
+  };
+
+  const getUserNameFromObj = (obj) => {
+    if (!obj) return "";
+    const id =
+      obj.id_usuario ??
+      obj.Id_usuario ??
+      obj.id_personal ??
+      obj.Id_personal ??
+      obj.id ??
+      obj.Id;
+    return getUserNameById(id) || "";
+  };
+
+  /* ======================= Enviar mensaje ======================= */
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!newMessage.trim()) return;
+
+    setSending(true);
+    setError("");
+
+    try {
+      const created = await sendTicketMessage({
+        ticketId,
+        authTokens,
+        principalId,
+        content: newMessage.trim(),
+        user,
+      });
+
+      setMessages((prev) => [...prev, created]);
+      setNewMessage("");
+    } catch (err) {
+      console.error("❌ Error enviando mensaje:", err);
+      setError("No se pudo enviar el mensaje.");
+    } finally {
+      setSending(false);
+    }
   };
 
   /* ======================= Render ======================= */
@@ -290,11 +304,15 @@ export default function TicketChat({ ticketId, onClose }) {
                   </p>
                   <p className="mb-1">
                     <strong>Reportado por:</strong>{" "}
-                    {getUserName(ticket.reporter?.id)}
+                    {getUserNameFromObj(ticket.reporter) ||
+                      getUserNameById(ticket.reporter?.id) ||
+                      "—"}
                   </p>
                   <p className="mb-1">
                     <strong>Asignado a:</strong>{" "}
-                    {getUserName(ticket.assignee?.id)}
+                    {getUserNameFromObj(ticket.assignee) ||
+                      getUserNameById(ticket.assignee?.id) ||
+                      "—"}
                   </p>
                   <p className="mb-1">
                     <strong>Creado:</strong>{" "}
@@ -341,8 +359,28 @@ export default function TicketChat({ ticketId, onClose }) {
                 {messages.map((msg) => {
                   const isMine =
                     msg?.sender?.id == principalId ||
+                    msg?.sender?.id_personal == principalId ||
                     msg?.principalId == principalId ||
                     msg?.senderId == principalId;
+
+                  // tratamos de resolver el nombre del remitente
+                  const senderId =
+                    msg?.sender?.id_usuario ??
+                    msg?.sender?.Id_usuario ??
+                    msg?.sender?.id_personal ??
+                    msg?.sender?.Id_personal ??
+                    msg?.senderId ??
+                    msg?.principalId ??
+                    msg?.sender?.id;
+
+                  const resolvedName =
+                    (isMine ? "Tú" : "") ||
+                    getUserNameById(senderId) ||
+                    msg.sender?.name ||
+                    msg.senderName ||
+                    (!isMine && senderId
+                      ? `Usuario ${String(senderId)}`
+                      : "Usuario");
 
                   return (
                     <div
@@ -362,9 +400,7 @@ export default function TicketChat({ ticketId, onClose }) {
                         style={{ maxWidth: "70%" }}
                       >
                         <div className="small fw-bold mb-1">
-                          {msg.sender?.name ||
-                            msg.senderName ||
-                            (isMine ? "Tú" : "Usuario")}
+                          {resolvedName}
                         </div>
 
                         <div>
@@ -391,9 +427,7 @@ export default function TicketChat({ ticketId, onClose }) {
                     rows={2}
                     placeholder="Escribe un mensaje..."
                     value={newMessage}
-                    onChange={(e) =>
-                      setNewMessage(e.target.value)
-                    }
+                    onChange={(e) => setNewMessage(e.target.value)}
                     disabled={sending}
                   />
                 </div>
