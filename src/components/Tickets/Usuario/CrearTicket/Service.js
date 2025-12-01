@@ -124,6 +124,7 @@ export const createTicketFull = async (user, form) => {
     assigneeType: form.assigneeType,
     assigneeId: form.assigneeId || null,
     principalId,
+    firstMessageBody: form.description,
   }
 
   console.log('📤 Enviando ticket:', body)

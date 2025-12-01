@@ -1,6 +1,6 @@
 import './SeccionDinamicatickets.css'
 import TicketsList from '../Usuario/TicketsList'
-import MisTareas from '../Usuario/MisTareas'
+import MisTareas from '../Usuario/MisTareas/MisTareas.jsx'
 import TicketsSoporte from '../Usuario/CrearTicket/TicketsSoporte.jsx'
 
 const SeccionDinamicaTickets = ({ selectedSection }) => {
