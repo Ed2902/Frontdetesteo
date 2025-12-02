@@ -9,6 +9,8 @@ import {
   createTicketFull,
 } from '../../../Tickets/Usuario/CrearTicket/Service.js'
 
+import './CreTick.css'
+
 const TicketsSoporte = () => {
   const { user } = useContext(AuthContext) || {}
 
@@ -99,121 +101,198 @@ const TicketsSoporte = () => {
   }
 
   return (
-    <div className='tickets-soporte'>
-      <h1>FrontCrear Tarea</h1>
-
-      {loadingData ? (
-        <p>Cargando datos...</p>
-      ) : (
-        <form onSubmit={handleSubmit}>
-          {error && <p style={{ color: 'red' }}>{error}</p>}
-          {successMsg && <p style={{ color: 'green' }}>{successMsg}</p>}
-
-          <div>
-            <label>
-              Título
-              <input
-                type='text'
-                name='title'
-                value={form.title}
-                onChange={handleChange}
-                required
-              />
-            </label>
+    <div className="tickets-soporte">
+      <div className="tickets-soporte__container">
+        <header className="tickets-soporte__header">
+          <div className="tickets-soporte__title-wrapper">
+            <h1 className="tickets-soporte__title">Crear nueva tarea</h1>
+            <p className="tickets-soporte__subtitle">
+              Registra un ticket para soporte y asígnalo a la persona
+              correspondiente.
+            </p>
           </div>
 
-          <div>
-            <label>
-              Descripción
-              <textarea
-                name='description'
-                value={form.description}
-                onChange={handleChange}
-                required
-              />
-            </label>
+          <div className="tickets-soporte__badge">
+            <span>ORG:</span> <strong>{ORG_ID}</strong>
           </div>
+        </header>
 
-          <div>
-            <label>
-              Categoría
-              <select
-                name='categoryId'
-                value={form.categoryId}
-                onChange={handleChange}
-                required
+        {loadingData ? (
+          <p className="tickets-soporte__status">Cargando datos...</p>
+        ) : (
+          <form onSubmit={handleSubmit} className="tickets-soporte__form">
+            {error && (
+              <div className="tickets-soporte__alert tickets-soporte__alert--error">
+                {error}
+              </div>
+            )}
+
+            {successMsg && (
+              <div className="tickets-soporte__alert tickets-soporte__alert--success">
+                {successMsg}
+              </div>
+            )}
+
+            <div className="tickets-soporte__grid">
+              {/* Columna izquierda */}
+              <div className="tickets-soporte__col">
+                <div className="tickets-soporte__field">
+                  <label
+                    htmlFor="ts-title"
+                    className="tickets-soporte__label"
+                  >
+                    Título
+                  </label>
+                  <input
+                    id="ts-title"
+                    type="text"
+                    name="title"
+                    className="tickets-soporte__input"
+                    value={form.title}
+                    onChange={handleChange}
+                    required
+                    placeholder="Ej: Problema con impresora de la recepción"
+                  />
+                </div>
+
+                <div className="tickets-soporte__field">
+                  <label
+                    htmlFor="ts-description"
+                    className="tickets-soporte__label"
+                  >
+                    Descripción
+                  </label>
+                  <textarea
+                    id="ts-description"
+                    name="description"
+                    className="tickets-soporte__textarea"
+                    value={form.description}
+                    onChange={handleChange}
+                    required
+                    placeholder="Describe el problema, área afectada y cualquier detalle importante..."
+                  />
+                </div>
+              </div>
+
+              {/* Columna derecha */}
+              <div className="tickets-soporte__col">
+                <div className="tickets-soporte__field">
+                  <label
+                    htmlFor="ts-category"
+                    className="tickets-soporte__label"
+                  >
+                    Categoría
+                  </label>
+                  <select
+                    id="ts-category"
+                    name="categoryId"
+                    className="tickets-soporte__select"
+                    value={form.categoryId}
+                    onChange={handleChange}
+                    required
+                  >
+                    <option value="">Selecciona una categoría</option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name || cat.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="tickets-soporte__field-group">
+                  <div className="tickets-soporte__field">
+                    <label
+                      htmlFor="ts-priority"
+                      className="tickets-soporte__label"
+                    >
+                      Prioridad
+                    </label>
+                    <select
+                      id="ts-priority"
+                      name="priorityId"
+                      className="tickets-soporte__select"
+                      value={form.priorityId}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Selecciona una prioridad</option>
+                      {priorities.map((p) => (
+                        <option key={p._id} value={p._id}>
+                          {p.name || p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="tickets-soporte__field">
+                    <label
+                      htmlFor="ts-status"
+                      className="tickets-soporte__label"
+                    >
+                      Estado
+                    </label>
+                    <select
+                      id="ts-status"
+                      name="statusId"
+                      className="tickets-soporte__select"
+                      value={form.statusId}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">Selecciona un estado</option>
+                      {statuses.map((s) => (
+                        <option key={s._id} value={s._id}>
+                          {s.name || s.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="tickets-soporte__field">
+                  <label
+                    htmlFor="ts-assignee"
+                    className="tickets-soporte__label"
+                  >
+                    Asignar a
+                  </label>
+                  <select
+                    id="ts-assignee"
+                    name="assigneeId"
+                    className="tickets-soporte__select"
+                    value={form.assigneeId}
+                    onChange={handleChange}
+                  >
+                    <option value="">
+                      Sin asignar (queda para el creador)
+                    </option>
+                    {assignees.map((u) => (
+                      <option key={u.id_usuario} value={u.id_usuario}>
+                        {u.username || u.nombre || u.email}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="tickets-soporte__help">
+                    Puedes dejarlo vacío para que el ticket quede a nombre del
+                    usuario que lo crea.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="tickets-soporte__actions">
+              <button
+                type="submit"
+                className="tickets-soporte__submit"
+                disabled={submitting}
               >
-                <option value=''>Selecciona una categoría</option>
-                {categories.map((cat) => (
-                  <option key={cat._id} value={cat._id}>
-                    {cat.name || cat.nombre}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div>
-            <label>
-              Prioridad
-              <select
-                name='priorityId'
-                value={form.priorityId}
-                onChange={handleChange}
-                required
-              >
-                <option value=''>Selecciona una prioridad</option>
-                {priorities.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.name || p.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div>
-            <label>
-              Estado
-              <select
-                name='statusId'
-                value={form.statusId}
-                onChange={handleChange}
-                required
-              >
-                <option value=''>Selecciona un estado</option>
-                {statuses.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name || s.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div>
-            <label>
-              Asignar a
-              <select
-                name='assigneeId'
-                value={form.assigneeId}
-                onChange={handleChange}
-              >
-                <option value=''>Sin asignar (queda para el creador)</option>
-                {assignees.map((u) => (
-                  <option key={u.id_usuario} value={u.id_usuario}>
-                    {u.username || u.nombre || u.email}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <button type='submit' disabled={submitting}>
-            {submitting ? 'Creando...' : 'Crear Ticket'}
-          </button>
-        </form>
-      )}
+                {submitting ? 'Creando...' : 'Crear Ticket'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   )
 }

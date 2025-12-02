@@ -1,6 +1,7 @@
 // src/components/Tickets/Chat/TicketChat.jsx
 import React, { useEffect, useState, useContext } from "react";
 import AuthContext from "../../../../../context/AuthContext";
+import "../TicketsChat/Chat.css";
 import {
   fetchTicketMessages,
   sendTicketMessage,
@@ -8,8 +9,10 @@ import {
   fetchTicketCategories,
   fetchTicketPriorities,
   fetchTicketStatuses,
-  fetchTicketUsers,
 } from "../TicketsChat/TicketsChat.js";
+import { fetchTicketMetaAndUsers } from "../../../Usuario/CrearTicket/Service.js";
+
+const DEBUG_PREFIX = "[TicketChat DEBUG]";
 
 export default function TicketChat({ ticketId, onClose }) {
   const { user, authTokens } = useContext(AuthContext);
@@ -43,6 +46,7 @@ export default function TicketChat({ ticketId, onClose }) {
       try {
         setTicketLoading(true);
         const data = await fetchTicketDetail({ ticketId, authTokens });
+        console.log(`${DEBUG_PREFIX} ticket detalle =>`, data);
         if (isMounted) setTicket(data || null);
       } catch (err) {
         console.error("❌ Error cargando ticket:", err);
@@ -60,6 +64,7 @@ export default function TicketChat({ ticketId, onClose }) {
           authTokens,
           principalId,
         });
+        console.log(`${DEBUG_PREFIX} mensajes =>`, data);
         if (isMounted) setMessages(data || []);
       } catch (err) {
         console.error("❌ Error cargando mensajes:", err);
@@ -83,37 +88,49 @@ export default function TicketChat({ ticketId, onClose }) {
 
     async function loadMeta() {
       try {
-        const [cats, pris, stats, users] = await Promise.all([
+        const [cats, pris, stats] = await Promise.all([
           fetchTicketCategories({ authTokens }),
           fetchTicketPriorities({ authTokens }),
           fetchTicketStatuses({ authTokens }),
-          fetchTicketUsers({ authTokens }),
         ]);
 
-        // categorías
+        let assignees = [];
+        try {
+          const meta = await fetchTicketMetaAndUsers(user);
+          assignees = meta?.assignees || [];
+          console.log(
+            `${DEBUG_PREFIX} assignees desde PHP/MySQL =>`,
+            assignees
+          );
+        } catch (err) {
+          console.warn(
+            `${DEBUG_PREFIX} No se pudieron cargar usuarios desde Service.php`,
+            err
+          );
+        }
+
+        console.log(`${DEBUG_PREFIX} users crudos (assignees) =>`, assignees);
+
         const cMap = {};
         cats.forEach((c) => {
           const key = String(c._id || c.id);
           cMap[key] = c.name || c.Nombre || c.nombre || key;
         });
 
-        // prioridades
         const pMap = {};
         pris.forEach((p) => {
           const key = String(p._id || p.id);
           pMap[key] = p.name || p.Nombre || p.nombre || key;
         });
 
-        // estados
         const sMap = {};
         stats.forEach((s) => {
           const key = String(s._id || s.id);
           sMap[key] = s.name || s.Nombre || s.nombre || key;
         });
 
-        // usuarios: guardamos por id_usuario E id_personal
         const uMap = {};
-        users.forEach((u) => {
+        assignees.forEach((u) => {
           const idUsuario =
             u.id_usuario ??
             u.Id_usuario ??
@@ -129,21 +146,15 @@ export default function TicketChat({ ticketId, onClose }) {
             u.personal?.id_personal ??
             null;
 
-          const nombre =
-            u.personal?.Nombre ??
-            u.personal?.nombre ??
-            u.Nombre ??
-            u.nombre ??
+          const nombreBase =
+            u.username ||
+            u.personal?.Nombre ||
+            u.personal?.nombre ||
+            u.Nombre ||
+            u.nombre ||
             "";
 
-          const apellido =
-            u.personal?.Apellido ??
-            u.personal?.apellido ??
-            u.Apellido ??
-            u.apellido ??
-            "";
-
-          const fullName = `${nombre} ${apellido}`.trim() || "Sin nombre";
+          const fullName = nombreBase || u.email || "Sin nombre";
 
           if (idUsuario != null) {
             uMap[String(idUsuario).trim()] = fullName;
@@ -153,6 +164,8 @@ export default function TicketChat({ ticketId, onClose }) {
             uMap[String(idPersonal).trim()] = fullName;
           }
         });
+
+        console.log(`${DEBUG_PREFIX} userMap final =>`, uMap);
 
         if (isMounted) {
           setCategoryMap(cMap);
@@ -165,11 +178,18 @@ export default function TicketChat({ ticketId, onClose }) {
       }
     }
 
-    loadMeta();
+    if (user) {
+      loadMeta();
+    } else {
+      console.warn(
+        `${DEBUG_PREFIX} No hay user en contexto, no se cargan meta/users todavía.`
+      );
+    }
+
     return () => {
       isMounted = false;
     };
-  }, [authTokens]);
+  }, [authTokens, user]);
 
   /* ======================= Helpers ======================= */
   const formatDate = (d) =>
@@ -207,19 +227,130 @@ export default function TicketChat({ ticketId, onClose }) {
   const getUserNameById = (id) => {
     if (!id) return "";
     const key = String(id).trim();
-    return userMap[key] || "";
+    const name = userMap[key] || "";
+    console.log(`${DEBUG_PREFIX} getUserNameById`, {
+      id,
+      key,
+      name,
+      userMapKeys: Object.keys(userMap),
+    });
+    return name;
   };
 
-  const getUserNameFromObj = (obj) => {
+  const getUserNameFromObj = (obj, label = "sin label") => {
+    console.log(`${DEBUG_PREFIX} getUserNameFromObj(${label}) =>`, obj);
+
     if (!obj) return "";
+
+    if (typeof obj === "number" || typeof obj === "string") {
+      return getUserNameById(obj);
+    }
+
+    const directName = obj.name || obj.Nombre || obj.nombre;
+    if (directName) return directName;
+
+    const nombre =
+      obj.personal?.Nombre ??
+      obj.personal?.nombre ??
+      obj.Nombre ??
+      obj.nombre ??
+      "";
+
+    const apellido =
+      obj.personal?.Apellido ??
+      obj.personal?.apellido ??
+      obj.Apellido ??
+      obj.apellido ??
+      "";
+
+    const fullDirect = `${nombre} ${apellido}`.trim();
+    if (fullDirect) return fullDirect;
+
     const id =
       obj.id_usuario ??
       obj.Id_usuario ??
+      obj.usuario_id ??
+      obj.userId ??
       obj.id_personal ??
       obj.Id_personal ??
+      obj.personalId ??
+      obj.principalId ??
       obj.id ??
       obj.Id;
+
     return getUserNameById(id) || "";
+  };
+
+  const getReporterName = () => {
+    if (!ticket) return "—";
+
+    const byObj =
+      getUserNameFromObj(ticket.reporter, "reporter") ||
+      ticket.reporterName ||
+      ticket.reporter_fullname;
+    if (byObj) return byObj;
+
+    const idCandidates = [
+      typeof ticket.reporter === "number" || typeof ticket.reporter === "string"
+        ? ticket.reporter
+        : null,
+      ticket.reporterId,
+      ticket.reporter_id,
+      ticket.reportedBy,
+      ticket.createdBy,
+      ticket.principalId,
+      ticket.id_usuario,
+      ticket.id_personal,
+      ticket.reporter?.id,
+      ticket.reporter?.principalId,
+      ticket.reporter?.id_usuario,
+      ticket.reporter?.id_personal,
+    ];
+
+    const firstValidId = idCandidates.find(
+      (v) => v !== null && v !== undefined && v !== ""
+    );
+
+    const nameFromMap = getUserNameById(firstValidId);
+
+    if (nameFromMap) return nameFromMap;
+    if (firstValidId) return `Usuario ${String(firstValidId)}`;
+    return "—";
+  };
+
+  const getAssigneeName = () => {
+    if (!ticket) return "—";
+
+    const byObj =
+      getUserNameFromObj(ticket.assignee, "assignee") ||
+      ticket.assigneeName ||
+      ticket.assignee_fullname;
+    if (byObj) return byObj;
+
+    const idCandidates = [
+      typeof ticket.assignee === "number" || typeof ticket.assignee === "string"
+        ? ticket.assignee
+        : null,
+      ticket.assigneeId,
+      ticket.assignee_id,
+      ticket.assignedTo,
+      ticket.id_asignado,
+      ticket.asignadoA,
+      ticket.assignee?.id,
+      ticket.assignee?.principalId,
+      ticket.assignee?.id_usuario,
+      ticket.assignee?.id_personal,
+    ];
+
+    const firstValidId = idCandidates.find(
+      (v) => v !== null && v !== undefined && v !== ""
+    );
+
+    const nameFromMap = getUserNameById(firstValidId);
+
+    if (nameFromMap) return nameFromMap;
+    if (firstValidId) return `Usuario ${String(firstValidId)}`;
+    return "—";
   };
 
   /* ======================= Enviar mensaje ======================= */
@@ -239,6 +370,8 @@ export default function TicketChat({ ticketId, onClose }) {
         user,
       });
 
+      console.log(`${DEBUG_PREFIX} mensaje creado =>`, created);
+
       setMessages((prev) => [...prev, created]);
       setNewMessage("");
     } catch (err) {
@@ -251,199 +384,288 @@ export default function TicketChat({ ticketId, onClose }) {
 
   /* ======================= Render ======================= */
   return (
-    <div className="ticket-chat-container">
-      <div className="ticket-chat-header d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">
-          Chat del ticket {ticket?.code || ticketId}
-        </h5>
-
-        {onClose && (
-          <button
-            type="button"
-            className="btn btn-sm btn-outline-secondary"
-            onClick={onClose}
-          >
-            Cerrar
-          </button>
-        )}
-      </div>
-
-      <div className="row">
-        {/* 🔹 Columna izquierda: detalle del ticket */}
-        <div className="col-md-4 mb-3">
-          <div className="card h-100">
-            <div className="card-header">Detalle del ticket</div>
-            <div className="card-body">
-              {ticketLoading && <p>Cargando ticket...</p>}
-
-              {ticketError && (
-                <div className="alert alert-danger py-1 mb-2">
-                  {ticketError}
-                </div>
-              )}
-
-              {ticket && !ticketLoading && (
-                <>
-                  <p className="mb-1">
-                    <strong>ID:</strong> {ticket.code}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Título:</strong> {ticket.title}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Descripción:</strong> {ticket.description}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Categoría:</strong> {getCategoryName()}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Prioridad:</strong> {getPriorityName()}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Estado:</strong> {getStatusName()}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Reportado por:</strong>{" "}
-                    {getUserNameFromObj(ticket.reporter) ||
-                      getUserNameById(ticket.reporter?.id) ||
-                      "—"}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Asignado a:</strong>{" "}
-                    {getUserNameFromObj(ticket.assignee) ||
-                      getUserNameById(ticket.assignee?.id) ||
-                      "—"}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Creado:</strong>{" "}
-                    {formatDate(ticket.createdAt)}
-                  </p>
-                  <p className="mb-1">
-                    <strong>Adjuntos:</strong>{" "}
-                    {ticket.attachmentsCount ?? 0}
-                  </p>
-                  {Array.isArray(ticket.tags) && ticket.tags.length > 0 && (
-                    <p className="mb-1">
-                      <strong>Tags:</strong>{" "}
-                      {ticket.tags.join(", ")}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
+    <div className="ticket-chat">
+      <div className="ticket-chat__container">
+        <div className="ticket-chat__header">
+          <div className="ticket-chat__title-wrapper">
+            <h5 className="ticket-chat__title">
+              Chat del ticket {ticket?.code || ticketId}
+            </h5>
+            {ticket && (
+              <span className="ticket-chat__subtitle">
+                {ticket.title || "Sin título"}
+              </span>
+            )}
           </div>
+
+          {onClose && (
+            <button
+              type="button"
+              className="ticket-chat__close-btn"
+              onClick={onClose}
+            >
+              Cerrar
+            </button>
+          )}
         </div>
 
-        {/* 🔹 Columna derecha: chat */}
-        <div className="col-md-8">
-          {loadingMessages ? (
-            <p>Cargando mensajes...</p>
-          ) : (
-            <>
-              {error && (
-                <div className="alert alert-danger py-1 mb-2">
-                  {error}
-                </div>
-              )}
-
-              <div
-                className="ticket-chat-messages border rounded p-2 mb-3"
-                style={{ maxHeight: "320px", overflowY: "auto" }}
-              >
-                {messages.length === 0 && (
-                  <p className="text-muted mb-0">
-                    No hay mensajes todavía.
+        <div className="ticket-chat__grid">
+          {/* 🔹 Columna izquierda: detalle del ticket */}
+          <div className="ticket-chat__left">
+            <div className="ticket-chat__card">
+              <div className="ticket-chat__card-header">
+                Detalle del ticket
+              </div>
+              <div className="ticket-chat__card-body">
+                {ticketLoading && (
+                  <p className="ticket-chat__status-text">
+                    Cargando ticket...
                   </p>
                 )}
 
-                {messages.map((msg) => {
-                  const isMine =
-                    msg?.sender?.id == principalId ||
-                    msg?.sender?.id_personal == principalId ||
-                    msg?.principalId == principalId ||
-                    msg?.senderId == principalId;
+                {ticketError && (
+                  <div className="ticket-chat__alert ticket-chat__alert--error">
+                    {ticketError}
+                  </div>
+                )}
 
-                  // tratamos de resolver el nombre del remitente
-                  const senderId =
-                    msg?.sender?.id_usuario ??
-                    msg?.sender?.Id_usuario ??
-                    msg?.sender?.id_personal ??
-                    msg?.sender?.Id_personal ??
-                    msg?.senderId ??
-                    msg?.principalId ??
-                    msg?.sender?.id;
-
-                  const resolvedName =
-                    (isMine ? "Tú" : "") ||
-                    getUserNameById(senderId) ||
-                    msg.sender?.name ||
-                    msg.senderName ||
-                    (!isMine && senderId
-                      ? `Usuario ${String(senderId)}`
-                      : "Usuario");
-
-                  return (
-                    <div
-                      key={msg._id || msg.id || Math.random()}
-                      className={`ticket-chat-message mb-2 d-flex ${
-                        isMine
-                          ? "justify-content-end"
-                          : "justify-content-start"
-                      }`}
-                    >
-                      <div
-                        className={`p-2 rounded ${
-                          isMine
-                            ? "bg-primary text-white"
-                            : "bg-light"
-                        }`}
-                        style={{ maxWidth: "70%" }}
-                      >
-                        <div className="small fw-bold mb-1">
-                          {resolvedName}
-                        </div>
-
-                        <div>
-                          {msg.message || msg.content || msg.text}
-                        </div>
-
-                        <div className="small text-muted mt-1 text-end">
-                          {msg.createdAt
-                            ? new Date(
-                                msg.createdAt
-                              ).toLocaleString()
-                            : ""}
-                        </div>
-                      </div>
+                {ticket && !ticketLoading && (
+                  <dl className="ticket-chat__info-list">
+                    <div className="ticket-chat__info-row">
+                      <dt>ID</dt>
+                      <dd>{ticket.code}</dd>
                     </div>
-                  );
-                })}
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Título</dt>
+                      <dd>{ticket.title}</dd>
+                    </div>
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Descripción</dt>
+                      <dd>{ticket.description}</dd>
+                    </div>
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Categoría</dt>
+                      <dd>{getCategoryName()}</dd>
+                    </div>
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Prioridad</dt>
+                      <dd>{getPriorityName()}</dd>
+                    </div>
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Estado</dt>
+                      <dd>{getStatusName()}</dd>
+                    </div>
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Reportado por</dt>
+                      <dd>{getReporterName()}</dd>
+                    </div>
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Asignado a</dt>
+                      <dd>{getAssigneeName()}</dd>
+                    </div>
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Creado</dt>
+                      <dd>{formatDate(ticket.createdAt)}</dd>
+                    </div>
+
+                    <div className="ticket-chat__info-row">
+                      <dt>Adjuntos</dt>
+                      <dd>{ticket.attachmentsCount ?? 0}</dd>
+                    </div>
+
+                    {Array.isArray(ticket.tags) &&
+                      ticket.tags.length > 0 && (
+                        <div className="ticket-chat__info-row">
+                          <dt>Tags</dt>
+                          <dd>{ticket.tags.join(", ")}</dd>
+                        </div>
+                      )}
+                  </dl>
+                )}
               </div>
+            </div>
+          </div>
 
-              <form onSubmit={handleSend} className="ticket-chat-input">
-                <div className="mb-2">
-                  <textarea
-                    className="form-control"
-                    rows={2}
-                    placeholder="Escribe un mensaje..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    disabled={sending}
-                  />
+          {/* 🔹 Columna derecha: chat */}
+          <div className="ticket-chat__right">
+            {loadingMessages ? (
+              <p className="ticket-chat__status-text">
+                Cargando mensajes...
+              </p>
+            ) : (
+              <>
+                {error && (
+                  <div className="ticket-chat__alert ticket-chat__alert--error">
+                    {error}
+                  </div>
+                )}
+
+                <div className="ticket-chat__messages">
+                  {messages.length === 0 && (
+                    <p className="ticket-chat__empty">
+                      No hay mensajes todavía.
+                    </p>
+                  )}
+
+                  {messages.map((msg, index) => {
+  // 💳 IDs del usuario logueado (varias opciones para asegurarnos)
+  const currentIdsRaw = [
+    user?.id_usuario,
+    user?.Id_usuario,
+    user?.id_personal,
+    user?.Id_personal,
+    user?.id,
+    user?.username,
+    user?.email,
+    principalId, 
+  ];
+
+  const currentIds = currentIdsRaw
+    .filter((v) => v !== null && v !== undefined && v !== "")
+    .map((v) => String(v).trim());
+
+  
+  const senderCandidatesRaw = [
+    msg?.sender?.id_usuario,
+    msg?.sender?.Id_usuario,
+    msg?.sender?.id_personal,
+    msg?.sender?.Id_personal,
+    msg?.sender?.principalId,
+    msg?.senderId,
+    msg?.principalId,
+    msg?.sender?.id,
+    msg?.sender?.name,
+    msg?.senderName,
+  ];
+
+  const senderCandidates = senderCandidatesRaw
+    .filter((v) => v !== null && v !== undefined && v !== "")
+    .map((v) => String(v).trim());
+
+  // ✅ Ahora sí: es mío si algún ID/nombre del sender coincide con los del usuario
+  const isMine = senderCandidates.some((sid) => currentIds.includes(sid));
+
+  const senderId =
+    msg?.sender?.id_usuario ??
+    msg?.sender?.Id_usuario ??
+    msg?.sender?.id_personal ??
+    msg?.sender?.Id_personal ??
+    msg?.sender?.principalId ??
+    msg?.senderId ??
+    msg?.principalId ??
+    msg?.sender?.id;
+
+  const nameFromMap = getUserNameById(senderId);
+  const baseName =
+    nameFromMap ||
+    msg.sender?.name ||
+    msg.senderName ||
+    (senderId ? `Usuario ${String(senderId)}` : "Usuario");
+
+  // Nombre que se muestra
+  const displayName = isMine ? `Tú (${baseName})` : baseName;
+
+  const timestamp = msg.createdAt
+    ? new Date(msg.createdAt).toLocaleString("es-CO", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
+
+  const initials = baseName
+    .split(" ")
+    .map((p) => p[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+
+  console.log(`${DEBUG_PREFIX} mensaje[${index}] =>`, {
+    msg,
+    isMine,
+    currentIds,
+    senderCandidates,
+    displayName,
+  });
+
+  return (
+    <div
+      key={msg._id || msg.id || `${index}-${timestamp}`}
+      className={`ticket-chat__message ${
+        isMine
+          ? "ticket-chat__message--mine"
+          : "ticket-chat__message--other"
+      }`}
+    >
+      {/* 👤 Avatar otro usuario (izquierda) */}
+      {!isMine && (
+        <div className="ticket-chat__avatar">
+          <span>{initials}</span>
+        </div>
+      )}
+
+      {/* 💬 Burbuja */}
+      <div className="ticket-chat__bubble">
+        <div className="ticket-chat__bubble-header">
+          <span className="ticket-chat__sender-name">{displayName}</span>
+          <span className="ticket-chat__timestamp">{timestamp}</span>
+        </div>
+
+        <div className="ticket-chat__bubble-body">
+          {msg.message || msg.content || msg.text}
+        </div>
+      </div>
+
+      {/* 🧑‍💻 Tu avatar (derecha) */}
+      {isMine && (
+        <div className="ticket-chat__avatar ticket-chat__avatar--mine">
+          <span>{initials}</span>
+        </div>
+      )}
+    </div>
+  );
+})}
+
                 </div>
 
-                <div className="d-flex justify-content-end">
-                  <button
-                    type="submit"
-                    className="btn btn-primary"
-                    disabled={sending || !newMessage.trim()}
-                  >
-                    {sending ? "Enviando..." : "Enviar"}
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
+                <form
+                  onSubmit={handleSend}
+                  className="ticket-chat__input-wrapper"
+                >
+                  <div className="ticket-chat__textarea-wrapper">
+                    <textarea
+                      className="ticket-chat__textarea"
+                      rows={2}
+                      placeholder="Escribe un mensaje..."
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      disabled={sending}
+                    />
+                  </div>
+
+                  <div className="ticket-chat__actions">
+                    <button
+                      type="submit"
+                      className="ticket-chat__send-btn"
+                      disabled={sending || !newMessage.trim()}
+                    >
+                      {sending ? "Enviando..." : "Enviar"}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

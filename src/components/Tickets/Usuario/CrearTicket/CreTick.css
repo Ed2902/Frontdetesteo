@@ -1,0 +1,279 @@
+/* =========================
+   CONTENEDOR GENERAL
+   ========================= */
+
+.tickets-soporte {
+  padding: 8px;
+}
+
+.tickets-soporte__container {
+  background: #f3f4f6;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  padding: 16px 18px 20px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.12);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  position: relative;
+  color: #111827;
+}
+
+/* Glow suave azul/naranja para hacer juego con el chat */
+.tickets-soporte__container::before {
+  content: "";
+  position: absolute;
+  inset: -80px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.15), transparent 55%),
+    radial-gradient(circle at 100% 100%, rgba(249, 115, 22, 0.16), transparent 55%);
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* =========================
+   HEADER
+   ========================= */
+
+.tickets-soporte__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tickets-soporte__title-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tickets-soporte__title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tickets-soporte__title::before {
+  content: "📝";
+  font-size: 18px;
+}
+
+.tickets-soporte__subtitle {
+  font-size: 0.82rem;
+  color: #6b7280;
+  max-width: 480px;
+}
+
+/* badge org */
+
+.tickets-soporte__badge {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* =========================
+   ESTADO / ALERTAS
+   ========================= */
+
+.tickets-soporte__status {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.tickets-soporte__alert {
+  font-size: 0.8rem;
+  padding: 6px 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+.tickets-soporte__alert--error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.tickets-soporte__alert--success {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+/* =========================
+   FORMULARIO
+   ========================= */
+
+.tickets-soporte__form {
+  margin-top: 4px;
+}
+
+/* grid de 2 columnas en desktop */
+.tickets-soporte__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr);
+  gap: 14px;
+}
+
+.tickets-soporte__col {
+  min-width: 0;
+}
+
+/* =========================
+   CAMPOS
+   ========================= */
+
+.tickets-soporte__field {
+  margin-bottom: 10px;
+}
+
+.tickets-soporte__field-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tickets-soporte__label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+/* inputs / selects / textarea comunes */
+
+.tickets-soporte__input,
+.tickets-soporte__select,
+.tickets-soporte__textarea {
+  width: 100%;
+  font-size: 0.84rem;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  transition: all 0.15s ease;
+}
+
+.tickets-soporte__textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.tickets-soporte__input::placeholder,
+.tickets-soporte__textarea::placeholder {
+  color: #9ca3af;
+  font-size: 0.8rem;
+}
+
+.tickets-soporte__input:focus,
+.tickets-soporte__select:focus,
+.tickets-soporte__textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px #3b82f6, 0 6px 16px rgba(37, 99, 235, 0.25);
+}
+
+/* helper text */
+
+.tickets-soporte__help {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+/* =========================
+   ACCIONES
+   ========================= */
+
+.tickets-soporte__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.tickets-soporte__submit {
+  font-size: 0.85rem;
+  padding: 7px 20px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  color: #f9fafb;
+  background: linear-gradient(135deg, #f97316, #ea580c); /* naranja */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 10px 22px rgba(234, 88, 12, 0.4);
+  transition: all 0.15s ease;
+}
+
+.tickets-soporte__submit::after {
+  content: "➤";
+  font-size: 0.8rem;
+}
+
+.tickets-soporte__submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 13px 26px rgba(234, 88, 12, 0.5);
+}
+
+.tickets-soporte__submit:disabled {
+  opacity: 0.6;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* =========================
+   RESPONSIVE
+   ========================= */
+
+@media (max-width: 992px) {
+  .tickets-soporte__container {
+    padding: 14px 12px 16px;
+    border-radius: 14px;
+  }
+
+  .tickets-soporte__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tickets-soporte__field-group {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .tickets-soporte__title {
+    font-size: 0.98rem;
+  }
+
+  .tickets-soporte__subtitle {
+    font-size: 0.78rem;
+  }
+
+  .tickets-soporte__badge {
+    font-size: 0.7rem;
+  }
+
+  .tickets-soporte__input,
+  .tickets-soporte__select,
+  .tickets-soporte__textarea {
+    font-size: 0.8rem;
+  }
+}
