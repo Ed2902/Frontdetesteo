@@ -277,3 +277,63 @@
     font-size: 0.8rem;
   }
 }
+/* estilo para crear grupos de trabajo  */
+.tickets-soporte__radio-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.25rem;
+}
+
+.tickets-soporte__radio {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+}
+
+.tickets-soporte__assignee-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.tickets-soporte__btn-secondary {
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.tickets-soporte__btn-secondary:hover {
+  background: #e5e7eb;
+}
+
+.tickets-soporte__group-list {
+  margin-top: 0.5rem;
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.tickets-soporte__group-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  background: #f3f4f6;
+}
+
+.tickets-soporte__group-remove {
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  cursor: pointer;
+  color: #b91c1c;
+}

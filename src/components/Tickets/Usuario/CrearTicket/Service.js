@@ -7,7 +7,7 @@ const getBaseAuthHeaders = (user) => {
   const headers = {
     'Content-Type': 'application/json',
   }
- const token =
+  const token =
     user?.token ||
     user?.accessToken ||
     user?.jwt ||
@@ -16,8 +16,7 @@ const getBaseAuthHeaders = (user) => {
 
   if (token) {
     headers.Authorization = `Bearer ${token}`
-    console.log('🔐 Usando token para Authorization:', token.slice(0, 20) + '...')
-  } else {
+   } else {
     console.warn('⚠️ No se encontró token para Authorization')
   }
 
@@ -114,6 +113,24 @@ export const createTicketFull = async (user, form) => {
     throw new Error('No se pudo identificar el usuario actual (reporterId).')
   }
 
+  // Lo que el usuario eligió en la UI (persona / grupo)
+  const assigneeType =
+    form.assigneeType === 'group' ? 'group' : 'person'
+
+  // Lógica para persona vs grupo
+  let assigneeId = null
+  let assigneeGroup = []
+
+  if (assigneeType === 'person') {
+    assigneeId = form.assigneeId || null
+  } else {
+    assigneeGroup = Array.isArray(form.assigneeGroup)
+      ? form.assigneeGroup
+          .filter(Boolean)
+          .map((id) => String(id))
+      : []
+  }
+
   const body = {
     title: form.title,
     description: form.description,
@@ -121,10 +138,15 @@ export const createTicketFull = async (user, form) => {
     priorityId: form.priorityId,
     statusId: form.statusId,
     reporterId,
-    assigneeType: form.assigneeType,
-    assigneeId: form.assigneeId || null,
     principalId,
     firstMessageBody: form.description,
+    assigneeType,
+  }
+
+  if (assigneeType === 'person') {
+    body.assigneeId = assigneeId
+  } else {
+    body.assigneeGroup = assigneeGroup
   }
 
   console.log('📤 Enviando ticket:', body)

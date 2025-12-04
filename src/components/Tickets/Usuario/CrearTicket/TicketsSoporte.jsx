@@ -1,4 +1,3 @@
-// src/components/Tickets/Soporte/TicketsSoporte.jsx
 import { useEffect, useState, useContext } from 'react'
 import AuthContext from '../../../../context/AuthContext.jsx'
 
@@ -25,8 +24,9 @@ const TicketsSoporte = () => {
     categoryId: '',
     priorityId: '',
     statusId: '',
-    assigneeType: 'person',
+    assigneeType: 'person', // 'person' | 'group'
     assigneeId: '',
+    assigneeGroup: [], // 👈 array de ids de usuarios
   })
 
   const [loadingData, setLoadingData] = useState(true)
@@ -39,7 +39,36 @@ const TicketsSoporte = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setForm((prev) => ({ ...prev, [name]: value }))
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  // 👉 Agregar usuario seleccionado al grupo
+  const handleAddToGroup = () => {
+    if (!form.assigneeId) return
+
+    setForm((prev) => {
+      const id = String(prev.assigneeId)
+      if (prev.assigneeGroup.includes(id)) {
+        return prev // ya está en el grupo
+      }
+      return {
+        ...prev,
+        assigneeGroup: [...prev.assigneeGroup, id],
+      }
+    })
+  }
+
+  // 👉 Quitar usuario del grupo
+  const handleRemoveFromGroup = (idToRemove) => {
+    setForm((prev) => ({
+      ...prev,
+      assigneeGroup: prev.assigneeGroup.filter(
+        (id) => String(id) !== String(idToRemove)
+      ),
+    }))
   }
 
   useEffect(() => {
@@ -91,6 +120,7 @@ const TicketsSoporte = () => {
         statusId: '',
         assigneeType: 'person',
         assigneeId: '',
+        assigneeGroup: [], // reset grupo
       })
     } catch (err) {
       console.error('🛑 Error en handleSubmit tickets soporte:', err)
@@ -107,7 +137,7 @@ const TicketsSoporte = () => {
           <div className="tickets-soporte__title-wrapper">
             <h1 className="tickets-soporte__title">Crear nueva tarea</h1>
             <p className="tickets-soporte__subtitle">
-              Registra un ticket para soporte y asígnalo a la persona
+              Registra un ticket para soporte y asígnalo a la persona o grupo
               correspondiente.
             </p>
           </div>
@@ -250,33 +280,118 @@ const TicketsSoporte = () => {
                   </div>
                 </div>
 
+                {/* Tipo de asignación */}
+                <div className="tickets-soporte__field">
+                  <span className="tickets-soporte__label">
+                    Tipo de asignación
+                  </span>
+                  <div className="tickets-soporte__radio-group">
+                    <label className="tickets-soporte__radio">
+                      <input
+                        type="radio"
+                        name="assigneeType"
+                        value="person"
+                        checked={form.assigneeType === 'person'}
+                        onChange={handleChange}
+                      />
+                      <span>Persona</span>
+                    </label>
+                    <label className="tickets-soporte__radio">
+                      <input
+                        type="radio"
+                        name="assigneeType"
+                        value="group"
+                        checked={form.assigneeType === 'group'}
+                        onChange={handleChange}
+                      />
+                      <span>Grupo</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Asignar / Grupo */}
                 <div className="tickets-soporte__field">
                   <label
                     htmlFor="ts-assignee"
                     className="tickets-soporte__label"
                   >
-                    Asignar a
+                    {form.assigneeType === 'person'
+                      ? 'Asignar a'
+                      : 'Agregar integrante al grupo'}
                   </label>
-                  <select
-                    id="ts-assignee"
-                    name="assigneeId"
-                    className="tickets-soporte__select"
-                    value={form.assigneeId}
-                    onChange={handleChange}
-                  >
-                    <option value="">
-                      Sin asignar (queda para el creador)
-                    </option>
-                    {assignees.map((u) => (
-                      <option key={u.id_usuario} value={u.id_usuario}>
-                        {u.username || u.nombre || u.email}
+
+                  <div className="tickets-soporte__assignee-row">
+                    <select
+                      id="ts-assignee"
+                      name="assigneeId"
+                      className="tickets-soporte__select"
+                      value={form.assigneeId}
+                      onChange={handleChange}
+                    >
+                      <option value="">
+                        {form.assigneeType === 'person'
+                          ? 'Sin asignar (queda para el creador)'
+                          : 'Selecciona un usuario para agregar'}
                       </option>
-                    ))}
-                  </select>
-                  <p className="tickets-soporte__help">
-                    Puedes dejarlo vacío para que el ticket quede a nombre del
-                    usuario que lo crea.
-                  </p>
+                      {assignees.map((u) => (
+                        <option key={u.id_usuario} value={u.id_usuario}>
+                          {u.username || u.nombre || u.email}
+                        </option>
+                      ))}
+                    </select>
+
+                    {form.assigneeType === 'group' && (
+                      <button
+                        type="button"
+                        className="tickets-soporte__btn-secondary"
+                        onClick={handleAddToGroup}
+                      >
+                        Agregar
+                      </button>
+                    )}
+                  </div>
+
+                  {form.assigneeType === 'person' && (
+                    <p className="tickets-soporte__help">
+                      Puedes dejarlo vacío para que el ticket quede a nombre del
+                      usuario que lo crea.
+                    </p>
+                  )}
+
+                  {form.assigneeType === 'group' && (
+                    <>
+                      <p className="tickets-soporte__help">
+                        El ticket se asignará a todos los integrantes del grupo.
+                      </p>
+                      {form.assigneeGroup.length > 0 && (
+                        <ul className="tickets-soporte__group-list">
+                          {form.assigneeGroup.map((id) => {
+                            const u = assignees.find(
+                              (usr) =>
+                                String(usr.id_usuario) === String(id)
+                            )
+                            const label =
+                              u?.username || u?.nombre || u?.email || id
+                            return (
+                              <li
+                                key={id}
+                                className="tickets-soporte__group-item"
+                              >
+                                <span>{label}</span>
+                                <button
+                                  type="button"
+                                  className="tickets-soporte__group-remove"
+                                  onClick={() => handleRemoveFromGroup(id)}
+                                >
+                                  Quitar
+                                </button>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </div>

@@ -200,17 +200,27 @@ export async function loadMisTareas({
     // =====================================================================
     const myId = String(user.id_usuario);
 
-    const tickets = allTickets.filter((t) => {
-      const assigneeId =
-        t.assignee && t.assignee.id != null ? String(t.assignee.id) : null;
-      const reporterId =
-        t.reporter && t.reporter.id != null ? String(t.reporter.id) : null;
+const tickets = allTickets.filter((t) => {
+  const assigneeId =
+    t.assignee && t.assignee.id != null ? String(t.assignee.id) : null;
+  const reporterId =
+    t.reporter && t.reporter.id != null ? String(t.reporter.id) : null;
 
-      const soyAsignado = assigneeId === myId;
-      const soyReportero = reporterId === myId;
+  const soyAsignado = assigneeId === myId;
+  const soyReportero = reporterId === myId;
 
-      return soyAsignado || soyReportero;
-    });
+  // 🔹 NUEVO: ver si estoy dentro de assignee.members (grupo)
+  const members = Array.isArray(t.assignee?.members)
+    ? t.assignee.members
+    : [];
+
+  const soyMiembroGrupo = members.some((m) => {
+    const mid = m?.id != null ? String(m.id) : null;
+    return mid === myId;
+  });
+
+  return soyAsignado || soyReportero || soyMiembroGrupo;
+});
 
     // =====================================================================
     // 5) DATATABLE
@@ -231,6 +241,12 @@ export async function loadMisTareas({
         data: tickets,
         responsive: true,
         columns: [
+
+
+// 🔹 Participantes (Reportado + Asignados + Grupo)
+
+
+
        {
   data: "code",
   render: (code, type, row) => {
@@ -291,25 +307,54 @@ export async function loadMisTareas({
           },
 
           // 🔹 Asignado a
-          {
-            data: null,
-            render: (row) => {
-              const id = row.assignee?.id;
-              if (!id) return "";
-              const key = String(id);
-              const name = userMap[key];
-              if (!name) {
-                console.warn(
-                  "⚠️ assignee.id sin match en userMap",
-                  key,
-                  userMap
-                );
-                return `Usuario ${key}`;
-              }
-              return name;
-            },
-            defaultContent: "",
-          },
+         {
+  data: null,
+  render: (row) => {
+    const assignee = row.assignee || {};
+    const type = assignee.type || "person";
+
+    // 👥 Si es grupo: mostrar todos los integrantes
+    if (type === "group") {
+      const members = Array.isArray(assignee.members)
+        ? assignee.members
+        : [];
+
+      if (!members.length) return "";
+
+      const names = members
+        .map((m) => {
+          const mid = m?.id != null ? String(m.id) : null;
+          if (!mid) return "";
+          const name = userMap[mid];
+          if (!name) {
+            console.warn(
+              "⚠️ member.id sin match en userMap",
+              mid,
+              userMap
+            );
+            return `Usuario ${mid}`;
+          }
+          return name;
+        })
+        .filter(Boolean);
+
+      return names.join("<br>"); // cada integrante en una línea
+    }
+
+    // 🧍 Si NO es grupo (person / team): solo un nombre
+    const id = assignee.id;
+    if (!id) return "";
+    const key = String(id);
+    const name = userMap[key];
+    if (!name) {
+      console.warn("⚠️ assignee.id sin match en userMap", key, userMap);
+      return `Usuario ${key}`;
+    }
+    return name;
+  },
+  defaultContent: "",
+},
+
 
           // 🔹 Fecha creación
           {
