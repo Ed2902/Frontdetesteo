@@ -1,12 +1,43 @@
-export const API_URL = import.meta.env.VITE_API_URL4 || 'http://localhost:4000'
-export const USERS_API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3005/api'
-export const ORG_ID = import.meta.env.VITE_ORG_ID || 'greenway'
-export const TICKETS_BASE = `${API_URL}/tikets/tickets`
-// --------- Helpers de headers ---------
+// src/components/Tickets/Usuario/CrearTicket/Service.js
+import axios from 'axios'
+
+// ================== CONFIG DESDE .ENV ==================
+
+// Todas las rutas vienen DIRECTO del .env
+const TICKETS_BASE_URL = import.meta.env.VITE_API_URL4        // http://localhost:4000
+const USERS_BASE_URL = import.meta.env.VITE_API_URL           // http://localhost:3005/api
+
+export const ORG_ID = import.meta.env.VITE_ORG_ID             // greenway
+
+// ================== INSTANCIAS AXIOS ==================
+
+// API de tickets (Node 4000) -> VITE_API_URL4/tikets
+export const ticketsApi = axios.create({
+  baseURL: `${TICKETS_BASE_URL}/tikets`,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000,
+  validateStatus: (status) => status >= 200 && status < 500,
+})
+
+// API de usuarios (3005/api) -> VITE_API_URL
+export const usersApi = axios.create({
+  baseURL: USERS_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000,
+  validateStatus: (status) => status >= 200 && status < 500,
+})
+
+// ================== HELPERS DE HEADERS ==================
+
 const getBaseAuthHeaders = (user) => {
   const headers = {
     'Content-Type': 'application/json',
   }
+
   const token =
     user?.token ||
     user?.accessToken ||
@@ -16,29 +47,24 @@ const getBaseAuthHeaders = (user) => {
 
   if (token) {
     headers.Authorization = `Bearer ${token}`
-   } else {
+  } else {
     console.warn('⚠️ No se encontró token para Authorization')
   }
 
   return headers
 }
 
-// Headers para API de tickets (4000) => incluye org y principal
 export const getTicketsHeaders = (user) => {
   const headers = getBaseAuthHeaders(user)
 
-  if (!ORG_ID) {
-    console.warn('⚠️ ORG_ID está vacío, revisa tu .env (VITE_ORG_ID)')
-  } else {
+  if (ORG_ID) {
     headers['x-org-id'] = ORG_ID
-    console.log('🏢 Enviando x-org-id:', ORG_ID)
   }
 
   const principalId = user?.id_usuario || user?._id || user?.id || null
 
   if (principalId) {
     headers['x-principal-id'] = String(principalId)
-    console.log('👤 Enviando x-principal-id:', principalId)
   } else {
     console.warn('⚠️ No se encontró principalId en el usuario')
   }
@@ -46,30 +72,26 @@ export const getTicketsHeaders = (user) => {
   return headers
 }
 
-// Headers para API de usuarios (3005) => solo auth
 export const getUsersHeaders = (user) => {
   return getBaseAuthHeaders(user)
 }
 
-// --------- Llamadas a APIs ---------
+// ================== LLAMADAS A APIS ==================
 
-// Carga categorías, prioridades, estados (Mongo) + usuarios (MySQL)
+// 👉 Carga categorías, prioridades, estados (Mongo) + usuarios (MySQL)
 export const fetchTicketMetaAndUsers = async (user) => {
-  console.log('🌐 Cargando meta de tickets desde', TICKETS_BASE)
-  console.log('🌐 USERS_API_URL =>', USERS_API_URL)
+  console.log('🌐 Cargando meta de tickets desde Axios (ticketsApi)')
+  console.log('🌐 Cargando usuarios desde Axios (usersApi)')
 
   const ticketsHeaders = getTicketsHeaders(user)
   const usersHeaders = getUsersHeaders(user)
 
-  const [catRes, priRes, staRes] = await Promise.all([
-    fetch(`${TICKETS_BASE}/categories`, { headers: ticketsHeaders }),
-    fetch(`${TICKETS_BASE}/priorities`, { headers: ticketsHeaders }),
-    fetch(`${TICKETS_BASE}/statuses`, { headers: ticketsHeaders }),
+  const [catRes, priRes, staRes, usersRes] = await Promise.all([
+    ticketsApi.get('/tickets/categories', { headers: ticketsHeaders }),
+    ticketsApi.get('/tickets/priorities', { headers: ticketsHeaders }),
+    ticketsApi.get('/tickets/statuses', { headers: ticketsHeaders }),
+    usersApi.get('/usuario', { headers: usersHeaders }),
   ])
-
-  const usersRes = await fetch(`${USERS_API_URL}/usuario`, {
-    headers: usersHeaders,
-  })
 
   console.log('🔎 status =>', {
     categories: catRes.status,
@@ -79,32 +101,39 @@ export const fetchTicketMetaAndUsers = async (user) => {
   })
 
   const backendErrors = {}
-  if (!catRes.ok) backendErrors.categories = await catRes.text()
-  if (!priRes.ok) backendErrors.priorities = await priRes.text()
-  if (!staRes.ok) backendErrors.statuses = await staRes.text()
-  if (!usersRes.ok) backendErrors.users = await usersRes.text()
+  if (catRes.status >= 400)
+    backendErrors.categories = catRes.data || catRes.statusText
+  if (priRes.status >= 400)
+    backendErrors.priorities = priRes.data || priRes.statusText
+  if (staRes.status >= 400)
+    backendErrors.statuses = staRes.data || staRes.statusText
+  if (usersRes.status >= 400)
+    backendErrors.users = usersRes.data || usersRes.statusText
 
-  if (!catRes.ok || !priRes.ok || !staRes.ok || !usersRes.ok) {
+  if (
+    catRes.status >= 400 ||
+    priRes.status >= 400 ||
+    staRes.status >= 400 ||
+    usersRes.status >= 400
+  ) {
     console.error('❌ Errores backend:', backendErrors)
     throw new Error('Error al cargar datos del servidor')
   }
 
-  const [catData, priData, staData, usersData] = await Promise.all([
-    catRes.json(),
-    priRes.json(),
-    staRes.json(),
-    usersRes.json(),
-  ])
+  const catData = catRes.data
+  const priData = priRes.data
+  const staData = staRes.data
+  const usersData = usersRes.data
 
   return {
-    categories: catData.data || catData || [],
-    priorities: priData.data || priData || [],
-    statuses: staData.data || staData || [],
-    assignees: usersData.data || usersData || [],
+    categories: catData?.data || catData || [],
+    priorities: priData?.data || priData || [],
+    statuses: staData?.data || staData || [],
+    assignees: usersData?.data || usersData || [],
   }
 }
 
-// Crear ticket completo
+// 👉 Crear ticket completo
 export const createTicketFull = async (user, form) => {
   const reporterId = user?.id_usuario || user?._id || user?.id
   const principalId = reporterId
@@ -113,11 +142,8 @@ export const createTicketFull = async (user, form) => {
     throw new Error('No se pudo identificar el usuario actual (reporterId).')
   }
 
-  // Lo que el usuario eligió en la UI (persona / grupo)
-  const assigneeType =
-    form.assigneeType === 'group' ? 'group' : 'person'
+  const assigneeType = form.assigneeType === 'group' ? 'group' : 'person'
 
-  // Lógica para persona vs grupo
   let assigneeId = null
   let assigneeGroup = []
 
@@ -125,9 +151,7 @@ export const createTicketFull = async (user, form) => {
     assigneeId = form.assigneeId || null
   } else {
     assigneeGroup = Array.isArray(form.assigneeGroup)
-      ? form.assigneeGroup
-          .filter(Boolean)
-          .map((id) => String(id))
+      ? form.assigneeGroup.filter(Boolean).map((id) => String(id))
       : []
   }
 
@@ -149,19 +173,17 @@ export const createTicketFull = async (user, form) => {
     body.assigneeGroup = assigneeGroup
   }
 
-  console.log('📤 Enviando ticket:', body)
+  console.log('📤 Enviando ticket (Axios):', body)
 
-  const res = await fetch(`${TICKETS_BASE}/full`, {
-    method: 'POST',
+  const res = await ticketsApi.post('/tickets/full', body, {
     headers: getTicketsHeaders(user),
-    body: JSON.stringify(body),
   })
 
-  const json = await res.json().catch(() => ({}))
+  const json = res.data || {}
 
   console.log('📥 Respuesta creación ticket:', res.status, json)
 
-  if (!res.ok || json.ok === false) {
+  if (res.status >= 400 || json.ok === false) {
     throw new Error(json.message || 'Error al crear el ticket')
   }
 

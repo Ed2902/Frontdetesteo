@@ -2,11 +2,10 @@ import { useEffect, useState, useContext } from 'react'
 import AuthContext from '../../../../context/AuthContext.jsx'
 
 import {
-  ORG_ID,
-  TICKETS_BASE,
+  ORG_ID ,
   fetchTicketMetaAndUsers,
   createTicketFull,
-} from '../../../Tickets/Usuario/CrearTicket/Service.js'
+} from './Service.js'
 
 import './CreTick.css'
 
@@ -34,7 +33,6 @@ const TicketsSoporte = () => {
   const [error, setError] = useState('')
   const [successMsg, setSuccessMsg] = useState('')
 
-  console.log('🔧 TICKETS_BASE =>', TICKETS_BASE)
   console.log('🏢 ORG_ID =>', ORG_ID)
 
   const handleChange = (e) => {

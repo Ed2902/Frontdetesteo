@@ -13,10 +13,17 @@ import Home from './pages/Home/Home'
 import PrivateRoute from './components/PrivateRoute'
 import NoEncontrado from './pages/NoEncontrado'
 import Tickets from './pages/Tickets/TicketsPage.jsx'
+
+// ⬇️ NUEVO: inicializador de WebPush (no rompe nada)
+import AppWebPushInit from './AppWebPushInit'
+
 function App() {
   return (
     <AuthProvider>
       <Router>
+        {/* ⬇️ NUEVO: solo corre efectos, no cambia tu UI */}
+        <AppWebPushInit />
+
         <AppRoutes />
       </Router>
     </AuthProvider>
