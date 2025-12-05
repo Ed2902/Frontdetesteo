@@ -1,13 +1,15 @@
 import React, { useEffect, useRef, useContext, useState } from "react";
 import AuthContext from "../../../../context/AuthContext";
 import { loadMisTareas, destroyMisTareasTable } from "./MisTareas.service";
-import TicketChat from "../../Usuario/MisTareas/TicketsChat/TicketsChat.jsx"; // ajusta la ruta si cambia
+import TicketChat from "../../Usuario/MisTareas/TicketsChat/TicketsChat.jsx";
 import "./MisTareas.css";
 
 export default function MisTareas() {
-  const { user, authTokens } = useContext(AuthContext);
+  const { user, token } = useContext(AuthContext);
+
   const tableRef = useRef(null);
   const dataTableRef = useRef(null);
+  const initializedRef = useRef(false); // 👈 NUEVO: evita doble inicialización
 
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -16,12 +18,27 @@ export default function MisTareas() {
     console.log("🔎 permiso mistareas =>", user?.permisos?.mistareas);
     console.log("📊 MisTareas: inicializando DataTable con", {
       hasUser: !!user,
-      hasToken: !!authTokens,
+      hasToken: !!token,
     });
+
+    // Si no hay user o token todavía, no hacemos nada
+    if (!user || !token) {
+      console.warn("⚠️ Falta user o token, no se cargan mis tareas todavía");
+      return;
+    }
+
+    // 🚫 Evita que en desarrollo (StrictMode) o al re-montar
+    // se vuelva a inicializar el DataTable dos veces
+    if (initializedRef.current) {
+      console.log("⏭ MisTareas: ya inicializado, no vuelvo a llamar loadMisTareas");
+      return;
+    }
+    initializedRef.current = true;
 
     loadMisTareas({
       user,
-      authTokens,
+      // seguimos mandando la clave 'authTokens' para NO romper service.js
+      authTokens: token,
       tableRef,
       dataTableRef,
       onOpenChat: (ticketId) => {
@@ -32,9 +49,11 @@ export default function MisTareas() {
     });
 
     return () => {
+      console.log("🧹 MisTareas: cleanup, destruyendo DataTable");
       destroyMisTareasTable(dataTableRef);
+      initializedRef.current = false; // para que al volver a entrar se pueda inicializar de nuevo
     };
-  }, [user, authTokens]);
+  }, [user, token]);
 
   const handleCloseChat = () => {
     setIsChatOpen(false);

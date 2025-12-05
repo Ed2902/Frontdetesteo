@@ -1,5 +1,3 @@
-// src/App.jsx
-import React from 'react'
 import {
   BrowserRouter as Router,
   Routes,
@@ -14,6 +12,8 @@ import PrivateRoute from './components/PrivateRoute'
 import NoEncontrado from './pages/NoEncontrado'
 import Tickets from './pages/Tickets/TicketsPage.jsx'
 
+
+import TicketsList from './components/Tickets/Usuario/TicketsList.jsx'
 // ⬇️ NUEVO: inicializador de WebPush (no rompe nada)
 import AppWebPushInit from './AppWebPushInit'
 
@@ -21,7 +21,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        {/* ⬇️ NUEVO: solo corre efectos, no cambia tu UI */}
+         {/* ⬇️ NUEVO: solo corre efectos, no cambia tu UI */}
         <AppWebPushInit />
 
         <AppRoutes />
@@ -45,6 +45,14 @@ function AppRoutes() {
       <Route
         path='/tickets'
         element={<PrivateRoute permiso='tickets' element={<Tickets />} />}
+      />
+
+      {/* ⬇️ Ruta nueva usando TicketsList */}
+      <Route
+        path='/tickets/catalogos'
+        element={
+          <PrivateRoute permiso='tickets' element={<TicketsList />} />
+        }
       />
 
       {/* Redirección inicial */}

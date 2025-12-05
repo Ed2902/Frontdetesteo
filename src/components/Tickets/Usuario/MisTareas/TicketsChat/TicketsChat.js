@@ -1,28 +1,31 @@
-// src/components/Tickets/TicketsChat/TicketsChat.js
+// src/components/Tickets/Usuario/MisTareas/TicketsChat/TicketsChat.js
 
-// 🔗 Config básica
-const API_URL = import.meta.env.VITE_API_URL4 || "http://localhost:4000";
-const ORG_ID = import.meta.env.VITE_ORG_ID || "greenway";
+// 🔗 Usamos la misma instancia de Axios que ya creaste para tickets
+import {
+  ticketsApi,
+  ORG_ID,
+} from "../../CrearTicket/Service.js"; // ajusta la ruta si cambia
 
-const MESSAGES_BASE   = `${API_URL}/tikets/messages`;
-const TICKETS_BASE    = `${API_URL}/tikets/tickets`;
-const CATEGORIES_BASE = `${API_URL}/tikets/tickets/categories`;
-const PRIORITIES_BASE = `${API_URL}/tikets/tickets/priorities`;
-const STATUSES_BASE   = `${API_URL}/tikets/tickets/statuses`;
+// ====================== HELPERS ======================
 
-// --------- Headers básicos ---------
-function buildHeaders(authTokens) {
-  const headers = {
-    "Content-Type": "application/json",
-  };
-
-  const token =
+function resolveToken(authTokens) {
+  return (
     authTokens?.access ||
     authTokens?.token ||
     localStorage.getItem("token") ||
     localStorage.getItem("accessToken") ||
     localStorage.getItem("authToken") ||
-    null;
+    null
+  );
+}
+
+// Headers básicos basados en el token (pero sin exponer API_URL ni nada)
+function buildHeaders(authTokens) {
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  const token = resolveToken(authTokens);
 
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -37,9 +40,23 @@ function buildHeaders(authTokens) {
   return headers;
 }
 
-/* ============================================================
-   📥 Obtener mensajes de un ticket
-   ============================================================ */
+function normalizeList(json) {
+  if (!json) return [];
+  if (Array.isArray(json?.rows)) return json.rows;
+  if (Array.isArray(json?.data)) return json.data;
+  if (Array.isArray(json?.messages)) return json.messages;
+  if (Array.isArray(json?.categories)) return json.categories;
+  if (Array.isArray(json?.users)) return json.users;
+  if (Array.isArray(json?.personal)) return json.personal;
+  if (Array.isArray(json)) return json;
+  return [];
+}
+
+// ============================================================
+// 📥 Obtener mensajes de un ticket
+//   Antes: GET `${MESSAGES_BASE}/by-ticket/${ticketId}?orgId=...`
+//   Ahora: GET /tikets/messages/by-ticket/:ticketId?orgId=...
+// ============================================================
 export async function fetchTicketMessages({
   ticketId,
   authTokens,
@@ -47,36 +64,34 @@ export async function fetchTicketMessages({
 }) {
   if (!ticketId) throw new Error("ticketId requerido");
 
-  const url = `${MESSAGES_BASE}/by-ticket/${ticketId}?orgId=${encodeURIComponent(
-    ORG_ID
-  )}`;
+  const headers = buildHeaders(authTokens);
 
-  console.log("🌐 [TicketChat] GET mensajes =>", url);
+  console.log(
+    "🌐 [TicketChat] GET mensajes => /tikets/messages/by-ticket/",
+    ticketId
+  );
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: buildHeaders(authTokens),
+  const res = await ticketsApi.get(`/messages/by-ticket/${ticketId}`, {
+    headers,
+    params: { orgId: ORG_ID },
+    withCredentials: true,
   });
 
-  const raw = await res.json().catch(() => null);
+  const raw = res.data;
   console.log("📥 [TicketChat] Respuesta mensajes:", res.status, raw);
 
-  if (!res.ok) {
+  if (res.status >= 400) {
     throw new Error(`Error cargando mensajes: ${res.status}`);
   }
 
-  // raw = { total, page, limit, rows } o arreglo directo
-  if (Array.isArray(raw?.rows)) return raw.rows;
-  if (Array.isArray(raw)) return raw;
-  if (Array.isArray(raw?.data)) return raw.data;
-  if (Array.isArray(raw?.messages)) return raw.messages;
-
-  return [];
+  return normalizeList(raw);
 }
 
-/* ============================================================
-   📤 Enviar mensaje a un ticket
-   ============================================================ */
+// ============================================================
+// 📤 Enviar mensaje a un ticket
+//   Antes: POST `${MESSAGES_BASE}`
+//   Ahora: POST /tikets/messages
+// ============================================================
 export async function sendTicketMessage({
   ticketId,
   authTokens,
@@ -110,58 +125,54 @@ export async function sendTicketMessage({
     attachments: [],
   };
 
-  console.log("📤 [TicketChat] Enviando mensaje:", body);
+  console.log("📤 [TicketChat] Enviando mensaje (Axios):", body);
 
-  const token =
-    authTokens?.access ||
-    authTokens?.token ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("accessToken") ||
-    localStorage.getItem("authToken") ||
-    "";
+  const headers = buildHeaders(authTokens);
 
-  const res = await fetch(MESSAGES_BASE, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
+  const res = await ticketsApi.post("/messages", body, {
+    headers,
+    withCredentials: true,
   });
 
-  const json = await res.json().catch(() => null);
+  const json = res.data;
   console.log("📥 [TicketChat] Respuesta envío:", res.status, json);
 
-  if (!res.ok) {
+  if (res.status >= 400 || json?.ok === false) {
     throw new Error(
-      json?.message || json?.error || `Error enviando mensaje: ${res.status}`
+      json?.message ||
+        json?.error ||
+        `Error enviando mensaje: ${res.status}`
     );
   }
 
   return json;
 }
 
-/* ============================================================
-   📄 Obtener detalle de un ticket
-   ============================================================ */
+// ============================================================
+// 📄 Obtener detalle de un ticket
+//   Antes: GET `${TICKETS_BASE}/${ticketId}?orgId=...`
+//   Ahora: GET /tikets/tickets/:ticketId?orgId=...
+// ============================================================
 export async function fetchTicketDetail({ ticketId, authTokens }) {
   if (!ticketId) throw new Error("ticketId requerido");
 
-  const url = `${TICKETS_BASE}/${ticketId}?orgId=${encodeURIComponent(
-    ORG_ID
-  )}`;
+  const headers = buildHeaders(authTokens);
 
-  console.log("🌐 [TicketChat] GET ticket detail =>", url);
+  console.log(
+    "🌐 [TicketChat] GET ticket detail => /tikets/tickets/",
+    ticketId
+  );
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: buildHeaders(authTokens),
+  const res = await ticketsApi.get(`/tickets/${ticketId}`, {
+    headers,
+    params: { orgId: ORG_ID },
+    withCredentials: true,
   });
 
-  const json = await res.json().catch(() => null);
+  const json = res.data;
   console.log("📥 [TicketChat] Respuesta ticket detail:", res.status, json);
 
-  if (!res.ok) {
+  if (res.status >= 400) {
     throw new Error(
       json?.message || json?.error || `Error cargando ticket: ${res.status}`
     );
@@ -170,78 +181,74 @@ export async function fetchTicketDetail({ ticketId, authTokens }) {
   return json;
 }
 
-/* ============================================================
-   🔁 Helper genérico para catálogos
-   ============================================================ */
-async function fetchMetaList(url, authTokens) {
-  console.log("🌐 [TicketChat] GET meta =>", url);
+// ============================================================
+// 🔁 Helper genérico para catálogos (vía Axios)
+//   Equivalente a tu fetchMetaList(url, authTokens)
+// ============================================================
+async function fetchMetaListAxios(path, authTokens) {
+  const headers = buildHeaders(authTokens);
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: buildHeaders(authTokens),
-    credentials: "include",
+  console.log("🌐 [TicketChat] GET meta Axios =>", path);
+
+  const res = await ticketsApi.get(path, {
+    headers,
+    params: { orgId: ORG_ID },
+    withCredentials: true,
   });
 
-  const json = await res.json().catch(() => null);
+  const json = res.data;
   console.log("📥 [TicketChat] Respuesta meta:", res.status, json);
 
-  if (!res.ok) {
+  if (res.status >= 400) {
     throw new Error(
       json?.message || json?.error || `Error cargando meta: ${res.status}`
     );
   }
 
-  let list = [];
-  if (Array.isArray(json?.rows)) list = json.rows;
-  else if (Array.isArray(json)) list = json;
-  else if (Array.isArray(json?.data)) list = json.data;
-  else if (Array.isArray(json?.categories)) list = json.categories;
-
-  return list;
+  return normalizeList(json);
 }
 
-/* ============================================================
-   📚 Categorías, prioridades, estados
-   ============================================================ */
+// ============================================================
+// 📚 Categorías, prioridades, estados
+//   Antes: GET CATEGORIES_BASE / PRIORITIES_BASE / STATUSES_BASE
+//   Ahora: GET /tikets/tickets/categories|priorities|statuses
+// ============================================================
 export async function fetchTicketCategories({ authTokens }) {
-  const url = `${CATEGORIES_BASE}?orgId=${encodeURIComponent(ORG_ID)}`;
-  return fetchMetaList(url, authTokens);
+  return fetchMetaListAxios("/tickets/categories", authTokens);
 }
-
 
 export async function fetchTicketPriorities({ authTokens }) {
-  const url = `${PRIORITIES_BASE}?orgId=${encodeURIComponent(ORG_ID)}`;
-  return fetchMetaList(url, authTokens);
+  return fetchMetaListAxios("/tickets/priorities", authTokens);
 }
 
 export async function fetchTicketStatuses({ authTokens }) {
-  const url = `${STATUSES_BASE}?orgId=${encodeURIComponent(ORG_ID)}`;
-  return fetchMetaList(url, authTokens);
+  return fetchMetaListAxios("/tickets/statuses", authTokens);
 }
 
+// ============================================================
+// 👥 Usuarios relacionados a tickets
+//   Antes: GET `${API_URL}/tikets/tickets/users?orgId=...`
+//   Ahora: GET /tikets/tickets/users
+// ============================================================
 export async function fetchTicketUsers({ authTokens }) {
-  const url = `${API_URL}/tikets/tickets/users?orgId=${encodeURIComponent(ORG_ID)}`;
+  const headers = buildHeaders(authTokens);
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: buildHeaders(authTokens),
-    credentials: "include",
+  console.log("🌐 [TicketChat] GET usuarios => /tikets/tickets/users");
+
+  const res = await ticketsApi.get("/tickets/users", {
+    headers,
+    params: { orgId: ORG_ID },
+    withCredentials: true,
   });
 
-  const json = await res.json().catch(() => null);
+  const json = res.data;
+  console.log("📥 [TicketChat] Respuesta usuarios:", res.status, json);
 
-  if (!res.ok) {
+  if (res.status >= 400) {
     throw new Error(
       json?.message || json?.error || `Error cargando usuarios: ${res.status}`
     );
   }
 
-  let list = [];
-  if (Array.isArray(json?.rows)) list = json.rows;
-  else if (Array.isArray(json)) list = json;
-  else if (Array.isArray(json?.data)) list = json.data;
-  else if (Array.isArray(json?.users)) list = json.users;
-  else if (Array.isArray(json?.personal)) list = json.personal;
-
-  return list;
+  return normalizeList(json);
 }
