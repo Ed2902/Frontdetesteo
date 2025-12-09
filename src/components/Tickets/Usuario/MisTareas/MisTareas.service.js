@@ -17,26 +17,68 @@ function parseListAxios(res, label) {
     return [];
   }
   const j = res.data;
-  return Array.isArray(j) ? j : (j.rows || j.data || j.users || j.personal || []);
+  return Array.isArray(j)
+    ? j
+    : j.rows || j.data || j.users || j.personal || [];
 }
 
 // Helper para extraer token de authTokens (string u objeto)
 function getAuthToken(authTokens) {
   if (typeof authTokens === "string") return authTokens;
   if (authTokens && typeof authTokens === "object") {
-    return authTokens.access || authTokens.token || authTokens.jwt || authTokens.accessToken;
+    return (
+      authTokens.access ||
+      authTokens.token ||
+      authTokens.jwt ||
+      authTokens.accessToken
+    );
   }
   return null;
 }
 
-// Helper para crear mapas id -> name
-function createMap(items) {
+// 🔹 Helper para crear mapas id -> { name, color }
+function createCatalogMap(items) {
   const map = {};
   (items || []).forEach((item) => {
     const key = String(item._id || item.id);
-    map[key] = item.name || item.Nombre || item.nombre || key;
+    map[key] = {
+      name:
+        item.name ||
+        item.Nombre ||
+        item.nombre ||
+        item.label || // por si acaso
+        key,
+      color: item.color || item.hexColor || null,
+      
+    };
   });
   return map;
+}
+
+// 🔹 Helper para renderizar badge con color
+function renderColoredBadge(map, id) {
+  if (!id) return "";
+  const key = String(id);
+  const item = map[key];
+  if (!item) return "";
+
+  const name = item.name || key;
+  const color = item.color || "#6b7280"; // gris por defecto si no hay color
+
+  return `
+    <span
+      class="badge rounded-pill mis-tareas__badge"
+      style="
+        background-color: ${color};
+        color: #ffffff;
+        padding: 4px 10px;
+        font-size: 0.75rem;
+        border: 1px solid ${color};
+      "
+    >
+      ${name}
+    </span>
+  `;
 }
 
 // Helper para render de "Asignado a" en DataTable
@@ -94,11 +136,20 @@ export async function loadMisTareas({
       usersHeaders.Authorization = `Bearer ${token}`;
     }
 
-    // Cargar catálogos y usuarios en paralelo
+    // ⬇️ Nuevas rutas de catálogos
     const [catRes, priRes, staRes, usersRes] = await Promise.all([
-      ticketsApi.get("/tickets/categories", { headers: ticketsHeaders, params: { orgId: ORG_ID } }),
-      ticketsApi.get("/tickets/priorities", { headers: ticketsHeaders, params: { orgId: ORG_ID } }),
-      ticketsApi.get("/tickets/statuses", { headers: ticketsHeaders, params: { orgId: ORG_ID } }),
+      ticketsApi.get("/catalog/categories", {
+        headers: ticketsHeaders,
+        params: { orgId: ORG_ID },
+      }),
+      ticketsApi.get("/catalog/priorities", {
+        headers: ticketsHeaders,
+        params: { orgId: ORG_ID },
+      }),
+      ticketsApi.get("/catalog/statuses", {
+        headers: ticketsHeaders,
+        params: { orgId: ORG_ID },
+      }),
       usersApi.get("/personal", { headers: usersHeaders }),
     ]);
 
@@ -109,32 +160,66 @@ export async function loadMisTareas({
       parseListAxios(usersRes, "users"),
     ];
 
-    // Mapas id -> name
-    const categoryMap = createMap(categories);
-    const priorityMap = createMap(priorities);
-    const statusMap = createMap(statuses);
+    // Mapas id -> { name, color }
+    const categoryMap = createCatalogMap(categories);
+    const priorityMap = createCatalogMap(priorities);
+    const statusMap = createCatalogMap(statuses);
 
     // Mapa de usuarios
     const userMap = {};
     (users || []).forEach((u) => {
-      const idUsuario = u.id_usuario ?? u.Id_usuario ?? u.ID_usuario ?? u.idUsuario ?? u.IdUsuario ?? u.IDUsuario ?? u.id ?? u.Id ?? u.ID ?? u.personal?.id_usuario;
+      const idUsuario =
+        u.id_usuario ??
+        u.Id_usuario ??
+        u.ID_usuario ??
+        u.idUsuario ??
+        u.IdUsuario ??
+        u.IDUsuario ??
+        u.id ??
+        u.Id ??
+        u.ID ??
+        u.personal?.id_usuario;
       if (!idUsuario) {
         console.warn("⚠️ Usuario sin id_usuario:", u);
         return;
       }
       const key = String(idUsuario);
-      const nombre = u.personal?.nombre ?? u.personal?.Nombre ?? u.Nombre ?? u.nombre ?? u.NOMBRE ?? u.name ?? u.username ?? "";
-      const apellido = u.personal?.apellido ?? u.personal?.Apellido ?? u.Apellido ?? u.apellido ?? u.APELLIDO ?? u.lastName ?? "";
+      const nombre =
+        u.personal?.nombre ??
+        u.personal?.Nombre ??
+        u.Nombre ??
+        u.nombre ??
+        u.NOMBRE ??
+        u.name ??
+        u.username ??
+        "";
+      const apellido =
+        u.personal?.apellido ??
+        u.personal?.Apellido ??
+        u.Apellido ??
+        u.apellido ??
+        u.APELLIDO ??
+        u.lastName ??
+        "";
       userMap[key] = `${nombre} ${apellido}`.trim() || `Usuario ${key}`;
     });
 
     // Cargar tickets
-    const ticketsRes = await ticketsApi.get("/tickets", { headers: ticketsHeaders, params: { orgId: ORG_ID } });
+    const ticketsRes = await ticketsApi.get("/tickets", {
+      headers: ticketsHeaders,
+      params: { orgId: ORG_ID },
+    });
     if (ticketsRes.status >= 400) {
-      console.error("Error HTTP en /tickets:", ticketsRes.status, ticketsRes.data);
+      console.error(
+        "Error HTTP en /tickets:",
+        ticketsRes.status,
+        ticketsRes.data
+      );
       return;
     }
-    const allTickets = Array.isArray(ticketsRes.data?.rows) ? ticketsRes.data.rows : [];
+    const allTickets = Array.isArray(ticketsRes.data?.rows)
+      ? ticketsRes.data.rows
+      : [];
 
     // Filtrar tickets del usuario (asignado, reportado o miembro de grupo)
     const myId = String(user.id_usuario);
@@ -143,7 +228,9 @@ export async function loadMisTareas({
       const reporterId = t.reporter?.id ? String(t.reporter.id) : null;
       const soyAsignado = assigneeId === myId;
       const soyReportero = reporterId === myId;
-      const soyMiembroGrupo = Array.isArray(t.assignee?.members) && t.assignee.members.some((m) => String(m?.id) === myId);
+      const soyMiembroGrupo =
+        Array.isArray(t.assignee?.members) &&
+        t.assignee.members.some((m) => String(m?.id) === myId);
       return soyAsignado || soyReportero || soyMiembroGrupo;
     });
 
@@ -156,7 +243,9 @@ export async function loadMisTareas({
       return true;
     });
 
-    console.log(`📊 MisTareas => total: ${allTickets.length}, míos (dedupe): ${tickets.length}`);
+    console.log(
+      `📊 MisTareas => total: ${allTickets.length}, míos (dedupe): ${tickets.length}`
+    );
 
     // DataTable
     if (!tableRef.current) {
@@ -176,26 +265,68 @@ export async function loadMisTareas({
         columns: [
           {
             data: "code",
-            render: (code, type, row) => code ? `<code>${code}</code>` : `<code>${String(row?._id || "").slice(-6)}</code>`,
+            render: (code, type, row) =>
+              code
+                ? `<code>${code}</code>`
+                : `<code>${String(row?._id || "").slice(-6)}</code>`,
           },
           { data: "title", defaultContent: "" },
-          { data: "categoryId", render: (id) => id ? categoryMap[String(id)] || String(id) : "", defaultContent: "" },
-          { data: "priorityId", render: (id) => id ? priorityMap[String(id)] || String(id) : "", defaultContent: "" },
-          { data: "statusId", render: (id) => id ? statusMap[String(id)] || String(id) : "", defaultContent: "" },
-          { data: null, render: (row) => renderReporter(row, userMap), defaultContent: "" },
-          { data: null, render: (row) => renderAssignee(row, userMap), defaultContent: "" },
+
+          // 🔹 CATEGORÍA: badge con color del catálogo
+          {
+            data: "categoryId",
+            render: (id) => renderColoredBadge(categoryMap, id),
+            defaultContent: "",
+          },
+
+          // 🔹 PRIORIDAD: badge con color del catálogo
+          {
+            data: "priorityId",
+            render: (id) => renderColoredBadge(priorityMap, id),
+            defaultContent: "",
+          },
+
+          // 🔹 ESTADO: badge con color del catálogo
+          {
+            data: "statusId",
+            render: (id) => renderColoredBadge(statusMap, id),
+            defaultContent: "",
+          },
+
+          {
+            data: null,
+            render: (row) => renderReporter(row, userMap),
+            defaultContent: "",
+          },
+          {
+            data: null,
+            render: (row) => renderAssignee(row, userMap),
+            defaultContent: "",
+          },
           {
             data: "createdAt",
-            render: (d) => d ? new Date(d).toLocaleString("es-CO", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "",
+            render: (d) =>
+              d
+                ? new Date(d).toLocaleString("es-CO", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "",
           },
           {
             data: null,
             orderable: false,
             searchable: false,
-            render: (row) => `<button class="btn btn-sm btn-primary ver-btn" data-id="${row._id}">Ver</button>`,
+            render: (row) =>
+              `<button class="btn btn-sm btn-primary ver-btn" data-id="${row._id}">Ver</button>`,
           },
         ],
-        language: { url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json" },
+        language: {
+          url: "https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json",
+        },
         pageLength: 10,
       });
 
@@ -230,7 +361,10 @@ export const getMisTareas = async ({ user, authTokens }) => {
   const token = getAuthToken(authTokens);
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await ticketsApi.get("/tasks/mine", { headers, params: { orgId: ORG_ID } });
+  const res = await ticketsApi.get("/tasks/mine", {
+    headers,
+    params: { orgId: ORG_ID },
+  });
   if (res.status >= 400) {
     console.error("Error HTTP en /tasks/mine:", res.status, res.data);
     return [];

@@ -67,8 +67,14 @@ export async function createCategory(authTokens, payload) {
 }
 
 export async function updateCategory(authTokens, id, payload) {
+  if (!payload) {
+    console.error("❌ updateCategory llamado SIN payload");
+    throw new Error("payload es requerido en updateCategory");
+  }
+
   try {
     const headers = getTicketsHeaders(authTokens);
+
     const body = {
       name: payload.name?.trim(),
       description: payload.description?.trim() || "",
@@ -76,11 +82,13 @@ export async function updateCategory(authTokens, id, payload) {
       active: payload.active ?? true,
     };
 
-    const res = await ticketsApi.put(
-      `/tikets/catalog/categories/${id}`,
+    // 👇 OJO: aquí ya NO se pone /tikets, eso ya va en baseURL
+    const res = await ticketsApi.patch(
+      `/catalog/categories/${id}`,
       body,
       { headers }
     );
+
     return res.data;
   } catch (err) {
     console.error("❌ Error actualizando categoría:", err.response?.data || err);
@@ -144,6 +152,11 @@ export async function createPriority(authTokens, payload) {
 }
 
 export async function updatePriority(authTokens, id, payload) {
+  if (!payload) {
+    console.error("❌ updatePriority llamado SIN payload");
+    throw new Error("payload es requerido en updatePriority");
+  }
+
   try {
     const headers = getTicketsHeaders(authTokens);
     const weightInt = parseInt(payload.weight, 10);
@@ -152,21 +165,26 @@ export async function updatePriority(authTokens, id, payload) {
       name: payload.name?.trim(),
       description: payload.description?.trim() || "",
       color: payload.color || "#22c55e",
-      weight: Number.isNaN(weightInt) ? 1 : Math.max(1, weightInt),
+     weight: Number.isNaN(weightInt) ? 1 : Math.max(1, weightInt),
       active: payload.active ?? true,
     };
 
-    const res = await ticketsApi.put(
-      `/catalog/priorities/${id}`,
+    const res = await ticketsApi.patch(
+      `/catalog/priorities/${id}`,   
       body,
       { headers }
     );
+
     return res.data;
   } catch (err) {
-    console.error("❌ Error actualizando prioridad:", err.response?.data || err);
+    console.error(
+      " Error actualizando prioridad:",
+      err.response?.data || err
+    );
     throw err;
   }
 }
+
 
 export async function deletePriority(authTokens, id) {
   try {
@@ -225,6 +243,11 @@ export async function createStatus(authTokens, payload) {
 }
 
 export async function updateStatus(authTokens, id, payload) {
+  if (!payload) {
+    console.error("❌ updateStatus llamado SIN payload");
+    throw new Error("payload es requerido en updateStatus");
+  }
+
   try {
     const headers = getTicketsHeaders(authTokens);
     const orderInt = parseInt(payload.order, 10);
@@ -233,22 +256,25 @@ export async function updateStatus(authTokens, id, payload) {
       name: payload.name?.trim(),
       description: payload.description?.trim() || "",
       color: payload.color || "#0f172a",
+      // entero >= 1
       order: Number.isNaN(orderInt) ? 1 : Math.max(1, orderInt),
       isClosed: !!payload.isClosed,
       active: payload.active ?? true,
     };
 
-    const res = await ticketsApi.put(
-      `/catalog/statuses/${id}`,
+    const res = await ticketsApi.patch(
+      `/catalog/statuses/${id}`,   // 👈 ahora PATCH
       body,
       { headers }
     );
+
     return res.data;
   } catch (err) {
     console.error("❌ Error actualizando estado:", err.response?.data || err);
     throw err;
   }
 }
+
 
 export async function deleteStatus(authTokens, id) {
   try {

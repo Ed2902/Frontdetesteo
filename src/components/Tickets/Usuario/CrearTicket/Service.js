@@ -1,17 +1,13 @@
-// src/components/Tickets/Usuario/CrearTicket/Service.js
+
 import axios from 'axios'
 
-// ================== CONFIG DESDE .ENV ==================
 
-// Todas las rutas vienen DIRECTO del .env
-const TICKETS_BASE_URL = import.meta.env.VITE_API_URL4        // http://localhost:4000
-const USERS_BASE_URL = import.meta.env.VITE_API_URL           // http://localhost:3005/api
+const TICKETS_BASE_URL = import.meta.env.VITE_API_URL4        
+const USERS_BASE_URL = import.meta.env.VITE_API_URL        
 
-export const ORG_ID = import.meta.env.VITE_ORG_ID             // greenway
+export const ORG_ID = import.meta.env.VITE_ORG_ID             
 
 // ================== INSTANCIAS AXIOS ==================
-
-// API de tickets (Node 4000) -> VITE_API_URL4/tikets
 export const ticketsApi = axios.create({
   baseURL: `${TICKETS_BASE_URL}/tikets`,
   headers: {
@@ -79,17 +75,22 @@ export const getUsersHeaders = (user) => {
 // ================== LLAMADAS A APIS ==================
 
 // 👉 Carga categorías, prioridades, estados (Mongo) + usuarios (MySQL)
+// 👉 Carga categorías, prioridades, estados (NUEVAS tablas de catálogos) + usuarios (MySQL)
 export const fetchTicketMetaAndUsers = async (user) => {
-  console.log('🌐 Cargando meta de tickets desde Axios (ticketsApi)')
+  console.log('🌐 Cargando meta de tickets desde Axios (ticketsApi NUEVO)')
   console.log('🌐 Cargando usuarios desde Axios (usersApi)')
 
   const ticketsHeaders = getTicketsHeaders(user)
   const usersHeaders = getUsersHeaders(user)
 
+  // 👇 OJO: aquí apuntamos a las NUEVAS rutas:
+  // /tikets/catalog/categories
+  // /tikets/catalog/priorities
+  // /tikets/catalog/statuses
   const [catRes, priRes, staRes, usersRes] = await Promise.all([
-    ticketsApi.get('/tickets/categories', { headers: ticketsHeaders }),
-    ticketsApi.get('/tickets/priorities', { headers: ticketsHeaders }),
-    ticketsApi.get('/tickets/statuses', { headers: ticketsHeaders }),
+    ticketsApi.get('/catalog/categories', { headers: ticketsHeaders }),
+    ticketsApi.get('/catalog/priorities', { headers: ticketsHeaders }),
+    ticketsApi.get('/catalog/statuses', { headers: ticketsHeaders }),
     usersApi.get('/usuario', { headers: usersHeaders }),
   ])
 
@@ -125,6 +126,8 @@ export const fetchTicketMetaAndUsers = async (user) => {
   const staData = staRes.data
   const usersData = usersRes.data
 
+  // 👇 Aquí asumimos que el backend devuelve algo tipo:
+  // { ok: true, data: [...] } o directamente un array []
   return {
     categories: catData?.data || catData || [],
     priorities: priData?.data || priData || [],
@@ -132,6 +135,7 @@ export const fetchTicketMetaAndUsers = async (user) => {
     assignees: usersData?.data || usersData || [],
   }
 }
+
 
 // 👉 Crear ticket completo
 export const createTicketFull = async (user, form) => {

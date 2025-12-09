@@ -9,10 +9,11 @@ export default function MisTareas() {
 
   const tableRef = useRef(null);
   const dataTableRef = useRef(null);
-  const initializedRef = useRef(false); // 👈 NUEVO: evita doble inicialización
+  const initializedRef = useRef(false); // evita doble inicialización
 
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     console.log("🔎 permiso mistareas =>", user?.permisos?.mistareas);
@@ -21,37 +22,51 @@ export default function MisTareas() {
       hasToken: !!token,
     });
 
-    // Si no hay user o token todavía, no hacemos nada
     if (!user || !token) {
       console.warn("⚠️ Falta user o token, no se cargan mis tareas todavía");
       return;
     }
 
-    // 🚫 Evita que en desarrollo (StrictMode) o al re-montar
-    // se vuelva a inicializar el DataTable dos veces
+    // Evita doble init (StrictMode / remount)
     if (initializedRef.current) {
       console.log("⏭ MisTareas: ya inicializado, no vuelvo a llamar loadMisTareas");
       return;
     }
     initializedRef.current = true;
 
-    loadMisTareas({
-      user,
-      // seguimos mandando la clave 'authTokens' para NO romper service.js
-      authTokens: token,
-      tableRef,
-      dataTableRef,
-      onOpenChat: (ticketId) => {
-        console.log("🗨️ abrir chat para ticket =>", ticketId);
-        setSelectedTicketId(ticketId);
-        setIsChatOpen(true);
-      },
-    });
+    let cancelled = false;
+
+    const init = async () => {
+      try {
+        setLoading(true);
+        await loadMisTareas({
+          user,
+          // seguimos mandando la clave 'authTokens' para NO romper service.js
+          authTokens: token,
+          tableRef,
+          dataTableRef,
+          onOpenChat: (ticketId) => {
+            console.log("🗨️ abrir chat para ticket =>", ticketId);
+            setSelectedTicketId(ticketId);
+            setIsChatOpen(true);
+          },
+        });
+      } catch (err) {
+        console.error("❌ Error en MisTareas:", err);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    init();
 
     return () => {
       console.log("🧹 MisTareas: cleanup, destruyendo DataTable");
+      cancelled = true;
       destroyMisTareasTable(dataTableRef);
-      initializedRef.current = false; // para que al volver a entrar se pueda inicializar de nuevo
+      initializedRef.current = false;
     };
   }, [user, token]);
 
@@ -104,6 +119,12 @@ export default function MisTareas() {
           </div>
 
           <div className="mis-tareas__card-body">
+            {loading && (
+              <div className="mis-tareas__loading">
+                Cargando tus tareas...
+              </div>
+            )}
+
             <table
               id="misTareasTable"
               ref={tableRef}

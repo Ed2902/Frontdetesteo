@@ -18,11 +18,10 @@ import {
 } from "../Usuario/Catalogos.service.js";
 
 export default function Catalogos() {
-  // 👉 Igual que en MisTareas
+  // Igual que en MisTareas
   const { user, token } = useContext(AuthContext);
 
-  const [activeTab, setActiveTab] = useState("categories"); // categories | priorities | statuses
-
+  const [activeTab, setActiveTab] = useState("categories");
   const [categories, setCategories] = useState([]);
   const [priorities, setPriorities] = useState([]);
   const [statuses, setStatuses] = useState([]);
