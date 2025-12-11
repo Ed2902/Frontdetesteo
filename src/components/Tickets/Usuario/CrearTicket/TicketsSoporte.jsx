@@ -1,9 +1,10 @@
 import { useEffect, useState, useContext } from "react";
 import AuthContext from "../../../../context/AuthContext.jsx";
-
+import { registerWebPush } from "../../../../utils/webpushClient.js"
 import { ORG_ID, fetchTicketMetaAndUsers, createTicketFull } from "./Service.js";
-
+const API_BASE_DEFAULT = import.meta.env.VITE_API_URL4
 import "./CreTick.css";
+import { RxDragHandleVertical } from "react-icons/rx";
 
 const TicketsSoporte = () => {
   const { user } = useContext(AuthContext) || {};
@@ -30,7 +31,16 @@ const TicketsSoporte = () => {
   const [successMsg, setSuccessMsg] = useState("");
 
   console.log("🏢 ORG_ID =>", ORG_ID);
+  const { token } = useContext(AuthContext);
 
+const handleClick = () => {
+  registerWebPush({
+    apiBaseUrl: API_BASE_DEFAULT,             
+    orgId: ORG_ID,                      
+    principalId: String(user.id_usuario),
+    token,                            
+  });
+};
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({
@@ -64,6 +74,11 @@ const TicketsSoporte = () => {
       ),
     }));
   };
+
+
+
+
+
 
   useEffect(() => {
     if (!user) {
@@ -184,7 +199,7 @@ const TicketsSoporte = () => {
                       placeholder="Ej: Problema con impresora de recepción"
                     />
                   </div>
-
+                
                   <div className="ts-field">
                     <label htmlFor="ts-description" className="ts-label">
                       Descripción{" "}
@@ -388,6 +403,7 @@ const TicketsSoporte = () => {
               <div className="ts-actions">
                 <button
                   type="submit"
+                  onClick={handleClick}
                   className="ts-submit"
                   disabled={submitting}
                 >

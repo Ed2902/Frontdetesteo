@@ -1,15 +1,12 @@
+// src/utils/webpushClient.js (por ejemplo)
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
-// Convierte base64 url a Uint8Array (requerido por pushManager)
 function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, "+")
-    .replace(/_/g, "/");
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
 
   const rawData = atob(base64);
   const outputArray = new Uint8Array(rawData.length);
-
   for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
@@ -17,142 +14,185 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 /**
- * Registra el Service Worker y se suscribe a las notificaciones push.
+ * Registra / asegura la suscripción WebPush para un principal.
  *
- * @param {Object} params
- * @param {string} params.apiBaseUrl -
- * @param {string} params.orgId
- * @param {string} params.principalId
- * @param {string} [params.token]
+ * - NO destruye la suscripción anterior.
+ * - Reusa la existente si ya hay.
+ * - Solo crea una nueva si no existe y el usuario dio permiso.
  */
 export async function registerWebPush({
-  apiBaseUrl,
+  axiosInstance,   // opción 1: axios
+  headers = {},    // cabeceras extra (incluido Authorization)
+  apiBaseUrl,      // opción 2: base URL para fetch
   orgId,
   principalId,
-  token,
 }) {
   try {
-    if (!("serviceWorker" in navigator)) {
-      console.warn("⚠️ Service Workers no soportados en este navegador");
+    if (!('serviceWorker' in navigator)) {
+      console.warn('⚠️ Service Workers no soportados en este navegador');
       return;
     }
-
-    if (!("PushManager" in window)) {
-      console.warn("⚠️ PushManager no soportado en este navegador");
+    if (!('PushManager' in window)) {
+      console.warn('⚠️ PushManager no soportado en este navegador');
       return;
     }
-
     if (!VAPID_PUBLIC_KEY) {
-      console.warn("⚠️ VITE_VAPID_PUBLIC_KEY no definida en el frontend");
+      console.warn('⚠️ VITE_VAPID_PUBLIC_KEY no definida en el frontend');
+      return;
+    }
+    if (!principalId) {
+      console.warn('⚠️ registerWebPush sin principalId, no se puede guardar suscripción');
       return;
     }
 
-    console.log("📦 Registrando Service Worker...");
-    const registration = await navigator.serviceWorker.register("/sw.js");
+    // 1) Obtener o registrar el Service Worker para /sw.js
+    let registration = await navigator.serviceWorker.getRegistration('/sw.js');
+    if (!registration) {
+      registration = await navigator.serviceWorker.register('/sw.js');
+    }
 
-    console.log("✅ Service Worker registrado:", registration);
+    // 2) Revisar permiso de notificaciones
+    let permission = Notification.permission; // 'default' | 'granted' | 'denied'
 
-    // Pedimos permiso de notificaciones
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      console.warn("⚠️ Permiso de notificaciones no concedido:", permission);
+    if (permission === 'default') {
+      // Solo pedimos una vez, no en cada vista
+      permission = await Notification.requestPermission();
+    }
+
+    if (permission !== 'granted') {
+      console.warn('⚠️ Permiso de notificaciones no concedido:', permission);
       return;
     }
 
-    // Creamos la suscripción
-    const sub = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
-    });
+    // 3) Ver si ya existe una suscripción
+    let sub = await registration.pushManager.getSubscription();
 
-    console.log("✅ Suscripción creada:", sub);
+    // 4) Si no existe, crear una nueva
+    if (!sub) {
+      sub = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
 
-    // Enviar la suscripción a tu backend
+    if (!sub) {
+      console.warn('⚠️ No se pudo obtener o crear la suscripción de push');
+      return;
+    }
+
     const body = {
       orgId,
       principalId,
       subscription: sub,
     };
 
-    const headers = {
-      "Content-Type": "application/json",
-      "x-org-id": orgId,
-      "x-principal-id": principalId,
+    // Cabeceras mínimas para backend
+    const baseHeaders = {
+      'x-org-id': orgId,
+      'x-principal-id': principalId,
+      ...headers,
     };
 
-    // 🔐 Construcción robusta del Authorization
-    if (token) {
-      const tokenStr = String(token);
-      const finalToken = tokenStr.startsWith("Bearer ")
-        ? tokenStr
-        : `Bearer ${tokenStr}`;
+    let status;
+    let data;
 
-      console.log("🎫 Enviando Authorization en WebPush =>", finalToken);
+    if (axiosInstance) {
+      // MODO AXIOS
+      const resp = await axiosInstance.post(
+        '/notifications/subscriptions', // ajusta la ruta si tu backend es /tikets/notifications/...
+        body,
+        { headers: baseHeaders }
+      );
+      status = resp.status;
+      data = resp.data;
+    } else if (apiBaseUrl) {
+      // MODO FETCH
+      const resp = await fetch(`${apiBaseUrl}/notifications/subscriptions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...baseHeaders,
+        },
+        body: JSON.stringify(body),
+      });
 
-      headers["Authorization"] = finalToken;
+      status = resp.status;
+      const ct = resp.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        data = await resp.json();
+      } else {
+        data = { raw: await resp.text() };
+      }
     } else {
-      console.warn("⚠️ registerWebPush llamado SIN token, no se enviará Authorization");
-    }
-
-    const resp = await fetch(`${apiBaseUrl}/notifications/subscriptions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
-    });
-
-    const data = await resp.json();
-    if (!resp.ok) {
-      console.error("❌ Error guardando suscripción:", data);
+      console.warn('❌ registerWebPush llamado sin axiosInstance ni apiBaseUrl');
       return;
     }
 
-    console.log("✅ Suscripción registrada en el backend:", data);
+    console.log('📩 Respuesta backend WebPush:', status, data);
+
+    if (status < 200 || status >= 300) {
+      console.error('❌ Error guardando suscripción:', data);
+    }
   } catch (err) {
-    console.error("❌ Error en registerWebPush:", err);
+    console.error('❌ Error en registerWebPush:', err);
   }
 }
 
 /**
- * Elimina las suscripciones de un principal (opcional, para logout).
+ * Elimina / desactiva las suscripciones de un principal (p. ej. en logout).
  */
 export async function unregisterWebPush({
+  axiosInstance,
+  headers = {},
   apiBaseUrl,
   orgId,
   principalId,
-  token,
 }) {
   try {
-    const headers = {
-      "Content-Type": "application/json",
-      "x-org-id": orgId,
-      "x-principal-id": principalId,
-    };
-
-    if (token) {
-      const tokenStr = String(token);
-      const finalToken = tokenStr.startsWith("Bearer ")
-        ? tokenStr
-        : `Bearer ${tokenStr}`;
-
-      console.log("🎫 Enviando Authorization en unregisterWebPush =>", finalToken);
-
-      headers["Authorization"] = finalToken;
-    }
-
-    const resp = await fetch(`${apiBaseUrl}/notifications/subscriptions`, {
-      method: "DELETE",
-      headers,
-      body: JSON.stringify({ orgId, principalId }),
-    });
-
-    const data = await resp.json();
-    if (!resp.ok) {
-      console.error("❌ Error eliminando suscripciones:", data);
+    if (!principalId) {
+      console.warn('⚠️ unregisterWebPush sin principalId');
       return;
     }
 
-    console.log("🧹 Suscripciones eliminadas:", data);
+    const baseHeaders = {
+      'x-org-id': orgId,
+      'x-principal-id': principalId,
+      'Content-Type': 'application/json',
+      ...headers,
+    };
+
+    const body = { orgId, principalId };
+
+    let status;
+    let data;
+
+    if (axiosInstance) {
+      const resp = await axiosInstance.delete('/notifications/subscriptions', {
+        headers: baseHeaders,
+        data: body,
+      });
+      status = resp.status;
+      data = resp.data;
+    } else if (apiBaseUrl) {
+      const resp = await fetch(`${apiBaseUrl}/notifications/subscriptions`, {
+        method: 'DELETE',
+        headers: baseHeaders,
+        body: JSON.stringify(body),
+      });
+      status = resp.status;
+      const ct = resp.headers.get('content-type') || '';
+      if (ct.includes('application/json')) {
+        data = await resp.json();
+      } else {
+        data = { raw: await resp.text() };
+      }
+    } else {
+      console.warn('❌ unregisterWebPush llamado sin axiosInstance ni apiBaseUrl');
+      return;
+    }
+
+    console.log('🧹 Respuesta backend unregister WebPush:', status, data);
   } catch (err) {
-    console.error("❌ Error en unregisterWebPush:", err);
+    console.error('❌ Error en unregisterWebPush:', err);
   }
 }

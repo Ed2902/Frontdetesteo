@@ -8,7 +8,7 @@ const MenuTickets = ({ selectedSection, onSelectSection }) => {
   const { tienePermiso } = usePermisos()
 console.log('🔎 permiso mistareas =>', tienePermiso('mistareas'))
   const botones = [
-    { label: 'Mis Tareas', key: 'usuarios', permiso: 'crearTicket' },
+    { label: 'Crear Catalogos', key: 'usuarios', permiso: 'crearTicket' },
     { label: 'Crear Tarea', key: 'soporte', permiso: 'soporteTicket' },
     { label: 'Mis Tareas', key: 'mistareas', permiso: 'MisTareas' },
 

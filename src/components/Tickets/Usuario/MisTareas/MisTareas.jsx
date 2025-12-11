@@ -4,7 +4,7 @@ import { loadMisTareas, destroyMisTareasTable } from "./MisTareas.service";
 import TicketChat from "../../Usuario/MisTareas/TicketsChat/TicketsChat.jsx";
 import "./MisTareas.css";
 
-export default function MisTareas() {
+export default function MisTareas({ initialTicketId = null }) {
   const { user, token } = useContext(AuthContext);
 
   const tableRef = useRef(null);
@@ -14,6 +14,15 @@ export default function MisTareas() {
   const [selectedTicketId, setSelectedTicketId] = useState(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+
+   useEffect(() => {
+    if (initialTicketId) {
+      console.log('🎯 MisTareas: ticket desde URL =>', initialTicketId);
+      setSelectedTicketId(initialTicketId);
+      setIsChatOpen(true);
+    }
+  }, [initialTicketId]);
 
   useEffect(() => {
     console.log("🔎 permiso mistareas =>", user?.permisos?.mistareas);
@@ -29,7 +38,9 @@ export default function MisTareas() {
 
     // Evita doble init (StrictMode / remount)
     if (initializedRef.current) {
-      console.log("⏭ MisTareas: ya inicializado, no vuelvo a llamar loadMisTareas");
+      console.log(
+        "⏭ MisTareas: ya inicializado, no vuelvo a llamar loadMisTareas"
+      );
       return;
     }
     initializedRef.current = true;
@@ -83,8 +94,9 @@ export default function MisTareas() {
           <div className="mis-tareas__title-wrapper">
             <h1 className="mis-tareas__title">Mis tareas</h1>
             <p className="mis-tareas__subtitle">
-              Aquí verás los tickets que tienes asignados o en los que participas.
-              Desde aquí también puedes abrir el chat de cada ticket.
+              Aquí verás los tickets que tienes asignados o en los que
+              participas. Desde aquí también puedes abrir el chat de cada
+              ticket.
             </p>
           </div>
 
@@ -114,15 +126,14 @@ export default function MisTareas() {
           <div className="mis-tareas__card-header">
             <span className="mis-tareas__card-title">Listado de tareas</span>
             <span className="mis-tareas__card-caption">
-              Usa los filtros de la tabla para buscar por estado, prioridad o usuarios.
+              Usa los filtros de la tabla para buscar por estado, prioridad o
+              usuarios.
             </span>
           </div>
 
           <div className="mis-tareas__card-body">
             {loading && (
-              <div className="mis-tareas__loading">
-                Cargando tus tareas...
-              </div>
+              <div className="mis-tareas__loading">Cargando tus tareas...</div>
             )}
 
             <table

@@ -19,6 +19,7 @@ import AppWebPushInit from './AppWebPushInit'
 
 function App() {
   return (
+  
     <AuthProvider>
       <Router>
          {/* ⬇️ NUEVO: solo corre efectos, no cambia tu UI */}

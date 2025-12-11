@@ -1,28 +1,29 @@
-import './SeccionDinamicatickets.css'
-import TicketsList from '../Usuario/TicketsList'
-import MisTareas from '../Usuario/MisTareas/MisTareas.jsx'
-import TicketsSoporte from '../Usuario/CrearTicket/TicketsSoporte.jsx'
+import './SeccionDinamicatickets.css';
+import TicketsList from '../Usuario/TicketsList';
+import MisTareas from '../Usuario/MisTareas/MisTareas.jsx';
+import TicketsSoporte from '../Usuario/CrearTicket/TicketsSoporte.jsx';
 
-const SeccionDinamicaTickets = ({ selectedSection }) => {
-  let contenido
+const SeccionDinamicaTickets = ({ selectedSection, initialTicketId }) => {
+  let contenido;
+
   switch (selectedSection) {
     case 'usuarios':
-      contenido = <TicketsList />
-      break
+      contenido = <TicketsList />;
+      break;
 
     case 'soporte':
-      contenido = <TicketsSoporte />
-      break
+      contenido = <TicketsSoporte />;
+      break;
 
-      case 'mistareas':
-      contenido = <MisTareas />
-      break
-   
-      default:
-      contenido = <TicketsList />
+    case 'mistareas':
+      contenido = <MisTareas initialTicketId={initialTicketId} />;
+      break;
+
+    default:
+      contenido = <TicketsList />;
   }
 
-  return <div className='tickets-seccion'>{contenido}</div>
-}
+  return <div className="tickets-seccion">{contenido}</div>;
+};
 
-export default SeccionDinamicaTickets
+export default SeccionDinamicaTickets;
