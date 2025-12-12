@@ -1,0 +1,268 @@
+/* Campanita.css */
+/* Estilo “Facebook-like”: badge, dropdown, items con unread, hover suave, panel elevado */
+
+.camp-root {
+  position: relative;
+  display: inline-block;
+}
+
+.camp-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.camp-btn:hover {
+  background: rgba(2, 6, 23, 0.03);
+  border-color: rgba(15, 23, 42, 0.2);
+}
+
+.camp-btn.is-open {
+  background: rgba(2, 6, 23, 0.05);
+  border-color: rgba(15, 23, 42, 0.25);
+}
+
+.camp-bell {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.camp-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #e11d48;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+}
+
+.camp-pop {
+  position: absolute;
+  left: 100%;             
+  top: 0;
+  margin-left: 12px;   
+  width: min(420px, calc(100vw - 24px));
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(2, 6, 23, 0.18);
+  overflow: hidden;
+  z-index: 1000;
+}
+
+
+.camp-head {
+  padding: 12px 12px 10px 12px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.camp-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.camp-sub {
+  font-weight: 600;
+  color: rgba(15, 23, 42, 0.65);
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.camp-markall {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(2, 132, 199, 0.9);
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.camp-markall:hover {
+  background: rgba(2, 132, 199, 0.08);
+}
+
+.camp-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px 8px 12px;
+}
+
+.camp-tab {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  color: rgba(15, 23, 42, 0.78);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+
+.camp-tab:hover {
+  background: rgba(2, 6, 23, 0.03);
+  border-color: rgba(15, 23, 42, 0.2);
+}
+
+.camp-tab.active {
+  background: rgba(2, 132, 199, 0.10);
+  border-color: rgba(2, 132, 199, 0.22);
+  color: rgba(2, 132, 199, 0.95);
+}
+
+.camp-body {
+  max-height: 420px;
+  overflow: auto;
+  padding: 6px 6px 8px 6px;
+}
+
+.camp-loading,
+.camp-error,
+.camp-empty {
+  padding: 16px 12px;
+  font-size: 13px;
+  color: rgba(15, 23, 42, 0.7);
+}
+
+.camp-error {
+  color: rgba(190, 18, 60, 0.95);
+}
+
+.camp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.camp-item {
+  margin: 4px 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.camp-itemBtn {
+  width: 100%;
+  border: none;
+  background: #fff;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: 18px 1fr 16px;
+  gap: 10px;
+  align-items: start;
+  padding: 12px 12px;
+  transition: background 140ms ease;
+  text-align: left;
+}
+
+.camp-itemBtn:hover {
+  background: rgba(2, 6, 23, 0.03);
+}
+
+.camp-item.is-unread .camp-itemBtn {
+  background: rgba(2, 132, 199, 0.06);
+}
+
+.camp-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.camp-item.is-unread .camp-dot {
+  background: rgba(2, 132, 199, 0.95);
+}
+
+.camp-itemTitle {
+  font-size: 13px;
+  font-weight: 900;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.camp-itemBody {
+  margin-top: 4px;
+  font-size: 12px;
+  color: rgba(15, 23, 42, 0.78);
+  line-height: 1.25;
+}
+
+.camp-itemMeta {
+  margin-top: 6px;
+  font-size: 11px;
+  color: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.camp-metaSep {
+  opacity: 0.8;
+}
+
+.camp-type {
+  font-weight: 700;
+  color: rgba(15, 23, 42, 0.62);
+}
+
+.camp-chevron {
+  margin-top: 2px;
+  color: rgba(15, 23, 42, 0.45);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.camp-foot {
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 10px 12px;
+  display: flex;
+  justify-content: center;
+}
+
+.camp-viewAll {
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: rgba(15, 23, 42, 0.78);
+}
+
+.camp-viewAll:hover {
+  background: rgba(2, 6, 23, 0.03);
+}
+
+/* Scrollbar sutil */
+.camp-body::-webkit-scrollbar {
+  width: 10px;
+}
+.camp-body::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.14);
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.9);
+}

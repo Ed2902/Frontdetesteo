@@ -1,6 +1,7 @@
 // src/components/Sidebar/Sidebar.jsx
 import { useState, useEffect, useContext } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
+import Campanita from './Campanita/Campanita.jsx'
 import {
   BiChevronLeft,
   BiChevronRight,
@@ -69,19 +70,27 @@ const Sidebar = ({ onToggleCollapse }) => {
           isMobileOpen ? 'open' : ''
         }`}
       >
-        <div className='sidebar-top'>
-          <div className='logo-wrapper'>
-            <img src='/Genika.webp' alt='Logo Empresa' className='logo-image' />
-            <p
-              className={`sidebar-subtitle ${
-                isCollapsed && !isMobileOpen ? 'hide-text' : ''
-              }`}
-            >
-              <span className='by-text'>By:</span>{' '}
-              <span className='fastway-text'>Fastwaysas</span>
-            </p>
-          </div>
-        </div>
+      <div className="sidebar-top">
+  <div className="sidebar-top-row">
+    <div className="logo-wrapper">
+      <img src="/Genika.webp" alt="Logo Empresa" className="logo-image" />
+      <p
+        className={`sidebar-subtitle ${
+          isCollapsed && !isMobileOpen ? "hide-text" : ""
+        }`}
+      >
+        <span className="by-text">By:</span>{" "}
+        <span className="fastway-text">Fastwaysas</span>
+      </p>
+    </div>
+
+    {/* 🔔 Campanita (siempre visible, incluso colapsado) */}
+    <div className="sidebar-notifications">
+      <Campanita />
+    </div>
+  </div>
+</div>
+
 
         <div className='sidebar-links'>
           <h6>Menú</h6>
@@ -103,7 +112,6 @@ const Sidebar = ({ onToggleCollapse }) => {
             )}
           </ul>
         </div>
-
         <div className='sidebar-bottom'>
           <div className='profile-logout'>
             <a href='#' className='logout' onClick={handleLogout}>
@@ -116,9 +124,11 @@ const Sidebar = ({ onToggleCollapse }) => {
               <p className='sidebar-user-text'>
                 Hola, {nombreUsuario} {apellidoUsuario}
               </p>
+            
             </div>
           )}
         </div>
+    
       </nav>
 
       {!isMobile && (
@@ -128,6 +138,7 @@ const Sidebar = ({ onToggleCollapse }) => {
           ) : (
             <BiChevronLeft size={24} />
           )}
+ 
         </div>
       )}
     </div>

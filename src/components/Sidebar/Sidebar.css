@@ -308,3 +308,24 @@
   background-color: #37acda;
   color: white;
 }
+.sidebar-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sidebar-notifications {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Cuando el sidebar está colapsado, centra la campana */
+.sidebar.collapsed .sidebar-top-row {
+  flex-direction: column;
+  justify-content: center;
+}
+.sidebar.collapsed .sidebar-notifications {
+  margin-top: 10px;
+}
