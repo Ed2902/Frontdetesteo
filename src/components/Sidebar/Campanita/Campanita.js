@@ -1,8 +1,10 @@
-function buildHeaders(accessToken) {
+function buildHeaders(accessToken, principalId) {
   const h = { "Content-Type": "application/json" };
   if (accessToken) h.Authorization = `Bearer ${accessToken}`;
+  if (principalId) h["x-principal-id"] = principalId;
   return h;
 }
+
 
 async function handleJson(res) {
   const txt = await res.text();
@@ -28,6 +30,7 @@ export async function fetchMyNotifications({
   apiBaseUrl,
   orgId,
   accessToken,
+  principalId,
   limit = 30,
   unreadOnly = false,
 }) {
@@ -35,13 +38,16 @@ export async function fetchMyNotifications({
   qs.set("limit", String(limit));
   qs.set("unreadOnly", unreadOnly ? "1" : "0");
 
+  // ✅ opcional: si tu validator/listSchema acepta principalId por query
+  if (principalId) qs.set("principalId", String(principalId));
+
   const url = `${apiBaseUrl}/tikets/notifications?${qs.toString()}`;
 
   const res = await fetch(url, {
     method: "GET",
     headers: {
-      ...buildHeaders(accessToken),
-      "x-org-id": orgId, // si tu backend lee orgId por header
+      ...buildHeaders(accessToken, principalId), // ✅ AQUÍ estaba el error
+      "x-org-id": orgId,
     },
   });
 
@@ -52,17 +58,15 @@ export async function fetchMyNotifications({
   return [];
 }
 
-/**
- * Espera:
- * { ok: true, count: 10 } o { count: 10 }
- */
-export async function fetchUnreadCount({ apiBaseUrl, orgId, accessToken }) {
+
+
+export async function fetchUnreadCount({ apiBaseUrl, orgId, accessToken, principalId }) {
   const url = `${apiBaseUrl}/tikets/notifications/unread-count`;
 
   const res = await fetch(url, {
     method: "GET",
     headers: {
-      ...buildHeaders(accessToken),
+      ...buildHeaders(accessToken, principalId), // ✅
       "x-org-id": orgId,
     },
   });
@@ -71,16 +75,17 @@ export async function fetchUnreadCount({ apiBaseUrl, orgId, accessToken }) {
   return data?.count ?? data?.data?.count ?? 0;
 }
 
+
 /**
  * PATCH /tikets/notifications/:id/read
  */
-export async function markNotificationRead({ apiBaseUrl, orgId, accessToken, id }) {
+export async function markNotificationRead({ apiBaseUrl, orgId, accessToken, principalId, id }) {
   const url = `${apiBaseUrl}/tikets/notifications/${id}/read`;
 
   const res = await fetch(url, {
     method: "PATCH",
     headers: {
-      ...buildHeaders(accessToken),
+      ...buildHeaders(accessToken, principalId),
       "x-org-id": orgId,
     },
   });
@@ -88,22 +93,20 @@ export async function markNotificationRead({ apiBaseUrl, orgId, accessToken, id 
   return handleJson(res);
 }
 
-/**
- * PATCH /tikets/notifications/read-all
- */
-export async function markAllNotificationsRead({ apiBaseUrl, orgId, accessToken }) {
+export async function markAllNotificationsRead({ apiBaseUrl, orgId, accessToken, principalId }) {
   const url = `${apiBaseUrl}/tikets/notifications/read-all`;
 
   const res = await fetch(url, {
     method: "PATCH",
     headers: {
-      ...buildHeaders(accessToken),
+      ...buildHeaders(accessToken, principalId),
       "x-org-id": orgId,
     },
   });
 
   return handleJson(res);
 }
+
 
 /**
  * Normaliza diferentes shapes:
@@ -177,4 +180,8 @@ export function timeAgo(dateLike) {
 
   const yr = Math.floor(day / 365);
   return `hace ${yr} a`;
+}
+export function notificationsbyid (id) {
+ const notifications = JSON.parse(localStorage.getItem("notifications")) || [];
+ return notifications.find(notification => notification.id === id);
 }

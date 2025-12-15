@@ -1,4 +1,10 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import AuthContext from "../../../context/AuthContext";
@@ -10,7 +16,6 @@ import {
   normalizeNotification,
   timeAgo,
 } from "./Campanita";
-
 import "./Campanita.css";
 
 export default function Campanita({
@@ -26,21 +31,39 @@ export default function Campanita({
   const btnRef = useRef(null);
   const timerRef = useRef(null);
 
+  // ==========================
+  // 🔐 Tokens e identidad
+  // ==========================
   const accessToken = useMemo(() => {
     return authTokens?.access || authTokens?.token || token || null;
   }, [authTokens, token]);
 
+  const principalId = useMemo(() => {
+    return (
+      user?.principalId ??
+      user?.id_usuario ??
+      user?.id ??
+      user?._id ??
+      null
+    );
+  }, [user]);
+
+  const canQuery = Boolean(accessToken && orgId && principalId);
+
+  // ==========================
+  // 📦 State
+  // ==========================
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState("unread"); // "unread" | "all"
+  const [tab, setTab] = useState("unread"); // unread | all
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState("");
-
   const [popStyle, setPopStyle] = useState({ top: 0, left: 0, width: 420 });
 
-  const canQuery = Boolean(accessToken && orgId);
-
+  // ==========================
+  // 📐 Posición popup
+  // ==========================
   const computePopPosition = () => {
     const el = btnRef.current;
     if (!el) return;
@@ -53,19 +76,13 @@ export default function Campanita({
     const vh = window.innerHeight;
 
     const width = Math.min(maxWidth, vw - 24);
-
-    // Preferimos abrir a la derecha del botón
     let left = rect.right + gap;
 
-    // Si se sale a la derecha, abrimos a la izquierda del botón
     if (left + width > vw - 12) {
       left = Math.max(12, rect.left - gap - width);
     }
 
-    // Alineado al top del botón
     let top = Math.max(12, rect.top);
-
-    // Evitar que se salga abajo (aprox de alto del dropdown)
     const approxHeight = 520;
     if (top + approxHeight > vh - 12) {
       top = Math.max(12, vh - approxHeight - 12);
@@ -74,26 +91,39 @@ export default function Campanita({
     setPopStyle({ top, left, width });
   };
 
+  // ==========================
+  // 🔢 Conteo
+  // ==========================
   const loadCounts = async () => {
     if (!canQuery) return;
     try {
-      const c = await fetchUnreadCount({ apiBaseUrl, orgId, accessToken });
+      const c = await fetchUnreadCount({
+        apiBaseUrl,
+        orgId,
+        accessToken,
+        principalId,
+      });
       setUnreadCount(Number(c || 0));
     } catch {
-      // no bloquea UI
+      // silencioso
     }
   };
 
+  // ==========================
+  // 📜 Listado
+  // ==========================
   const loadList = async () => {
     if (!canQuery) return;
     setLoading(true);
     setError("");
+
     try {
       const unreadOnly = tab === "unread";
       const data = await fetchMyNotifications({
         apiBaseUrl,
         orgId,
         accessToken,
+        principalId,
         limit,
         unreadOnly,
       });
@@ -105,7 +135,9 @@ export default function Campanita({
     }
   };
 
-  // Al abrir: posicionar + cargar + polling tipo Facebook (mientras está abierto)
+  // ==========================
+  // 🔄 Polling al abrir
+  // ==========================
   useEffect(() => {
     if (!open) return;
 
@@ -121,36 +153,37 @@ export default function Campanita({
 
     const onMove = () => computePopPosition();
     window.addEventListener("resize", onMove);
-    window.addEventListener("scroll", onMove, true); // captura scroll en contenedores
+    window.addEventListener("scroll", onMove, true);
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      clearInterval(timerRef.current);
       timerRef.current = null;
       window.removeEventListener("resize", onMove);
       window.removeEventListener("scroll", onMove, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, tab, canQuery]);
 
-  // Badge polling aunque esté cerrado
+  // ==========================
+  // 🔔 Polling badge cerrado
+  // ==========================
   useEffect(() => {
     if (!canQuery) return;
     loadCounts();
     const t = setInterval(() => loadCounts(), Math.max(8000, pollMs));
     return () => clearInterval(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canQuery, pollMs]);
 
-  // Cerrar al click afuera + ESC
+  // ==========================
+  // ❌ Cerrar afuera / ESC
+  // ==========================
   useEffect(() => {
     if (!open) return;
 
     const onDown = (e) => {
       const pop = document.getElementById("camp-pop-root");
-      const clickedInsideRoot = rootRef.current?.contains(e.target);
-      const clickedInsidePop = pop?.contains(e.target);
-
-      if (!clickedInsideRoot && !clickedInsidePop) setOpen(false);
+      const insideRoot = rootRef.current?.contains(e.target);
+      const insidePop = pop?.contains(e.target);
+      if (!insideRoot && !insidePop) setOpen(false);
     };
 
     const onKey = (e) => {
@@ -165,6 +198,9 @@ export default function Campanita({
     };
   }, [open]);
 
+  // ==========================
+  // 🖱️ Acciones
+  // ==========================
   const onToggle = () => {
     if (!accessToken) return;
     setOpen((v) => !v);
@@ -173,12 +209,19 @@ export default function Campanita({
   const onOpenItem = async (n) => {
     if (!n) return;
 
-    // optimista: marcar como leída
     if (!n.read) {
-      setRows((prev) => prev.map((x) => (x._id === n._id ? { ...x, read: true } : x)));
+      setRows((prev) =>
+        prev.map((x) => (x._id === n._id ? { ...x, read: true } : x))
+      );
       setUnreadCount((c) => Math.max(0, c - 1));
       try {
-        await markNotificationRead({ apiBaseUrl, orgId, accessToken, id: n._id });
+        await markNotificationRead({
+          apiBaseUrl,
+          orgId,
+          accessToken,
+          principalId,
+          id: n._id,
+        });
       } catch {}
     }
 
@@ -195,20 +238,26 @@ export default function Campanita({
     setUnreadCount(0);
 
     try {
-      await markAllNotificationsRead({ apiBaseUrl, orgId, accessToken });
+      await markAllNotificationsRead({
+        apiBaseUrl,
+        orgId,
+        accessToken,
+        principalId,
+      });
     } catch {
       await loadCounts();
       await loadList();
     }
   };
 
-  // Contenido del popup (lo usamos tanto para portal como para mantener limpio el JSX)
+  // ==========================
+  // 🪟 Popup
+  // ==========================
   const popContent = (
     <div
       id="camp-pop-root"
       className="camp-pop"
       role="dialog"
-      aria-label="Centro de notificaciones"
       style={{
         position: "fixed",
         top: popStyle.top,
@@ -220,47 +269,33 @@ export default function Campanita({
       <div className="camp-head">
         <div className="camp-title">
           Notificaciones
-          {user?.nombre || user?.name ? (
-            <span className="camp-sub"> {user?.nombre || user?.name}</span>
-          ) : null}
+          {user?.nombre && <span className="camp-sub"> {user.nombre}</span>}
         </div>
-
-        <button type="button" className="camp-markall" onClick={onMarkAllRead}>
+        <button className="camp-markall" onClick={onMarkAllRead}>
           Marcar todo como leído
         </button>
       </div>
 
-      <div className="camp-tabs" role="tablist">
+      <div className="camp-tabs">
         <button
-          type="button"
           className={`camp-tab ${tab === "unread" ? "active" : ""}`}
           onClick={() => setTab("unread")}
-          role="tab"
-          aria-selected={tab === "unread"}
         >
           No leídas
         </button>
         <button
-          type="button"
           className={`camp-tab ${tab === "all" ? "active" : ""}`}
           onClick={() => setTab("all")}
-          role="tab"
-          aria-selected={tab === "all"}
         >
           Todas
         </button>
       </div>
 
       <div className="camp-body">
-        {!accessToken && (
-          <div className="camp-empty">Inicia sesión para ver tus notificaciones.</div>
-        )}
+        {loading && <div className="camp-loading">Cargando…</div>}
+        {error && <div className="camp-error">{error}</div>}
 
-        {accessToken && loading && <div className="camp-loading">Cargando…</div>}
-
-        {accessToken && error && <div className="camp-error">{error}</div>}
-
-        {accessToken && !loading && !error && rows.length === 0 && (
+        {!loading && !error && rows.length === 0 && (
           <div className="camp-empty">
             {tab === "unread"
               ? "No tienes notificaciones sin leer."
@@ -268,49 +303,34 @@ export default function Campanita({
           </div>
         )}
 
-        {accessToken && rows.length > 0 && (
+        {rows.length > 0 && (
           <ul className="camp-list">
-            {rows.map((raw) => {
-              const n = normalizeNotification(raw);
-              return (
-                <li key={n._id} className={`camp-item ${n.read ? "" : "is-unread"}`}>
-                  <button
-                    type="button"
-                    className="camp-itemBtn"
-                    onClick={() => onOpenItem(n)}
-                  >
-                    <div className="camp-dot" aria-hidden="true" />
-                    <div className="camp-itemMain">
-                      <div className="camp-itemTitle">{n.title}</div>
-                      {n.body ? <div className="camp-itemBody">{n.body}</div> : null}
-                      <div className="camp-itemMeta">
-                        <span>{timeAgo(n.createdAt)}</span>
-                        {n.type ? <span className="camp-metaSep">·</span> : null}
-                        {n.type ? <span className="camp-type">{n.type}</span> : null}
-                      </div>
+            {rows.map((n) => (
+              <li
+                key={n._id}
+                className={`camp-item ${n.read ? "" : "is-unread"}`}
+              >
+                <button
+                  className="camp-itemBtn"
+                  onClick={() => onOpenItem(n)}
+                >
+                  <div className="camp-dot" />
+                  <div className="camp-itemMain">
+                    <div className="camp-itemTitle">{n.title}</div>
+                    {n.body && (
+                      <div className="camp-itemBody">{n.body}</div>
+                    )}
+                    <div className="camp-itemMeta">
+                      <span>{timeAgo(n.createdAt)}</span>
+                      {n.type && <span className="camp-type"> · {n.type}</span>}
                     </div>
-                    <div className="camp-chevron" aria-hidden="true">
-                      ›
-                    </div>
-                  </button>
-                </li>
-              );
-            })}
+                  </div>
+                  <div className="camp-chevron">›</div>
+                </button>
+              </li>
+            ))}
           </ul>
         )}
-      </div>
-
-      <div className="camp-foot">
-        <button
-          type="button"
-          className="camp-viewAll"
-          onClick={() => {
-            setOpen(false);
-            navigate("/notifications");
-          }}
-        >
-          Ver todas
-        </button>
       </div>
     </div>
   );
@@ -319,24 +339,18 @@ export default function Campanita({
     <div className="camp-root" ref={rootRef}>
       <button
         ref={btnRef}
-        type="button"
         className={`camp-btn ${open ? "is-open" : ""}`}
         onClick={onToggle}
-        aria-label="Notificaciones"
-        title="Notificaciones"
       >
-        <span className="camp-bell" aria-hidden="true">
-          🔔
-        </span>
+        🔔
         {unreadCount > 0 && (
-          <span className="camp-badge" aria-label={`${unreadCount} no leídas`}>
+          <span className="camp-badge">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         )}
       </button>
 
-      {/* 🔥 Portal: el popup se renderiza en document.body para que NO lo recorte el sidebar */}
-      {open ? createPortal(popContent, document.body) : null}
+      {open && createPortal(popContent, document.body)}
     </div>
   );
 }
